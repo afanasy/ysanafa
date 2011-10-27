@@ -1,26 +1,26 @@
-var express = require('express')
- , fs = require('fs')
- , knox = require('knox')
- , https = require('https')
- , io = require('socket.io')
- , mongodb = require('mongodb')
- , formidable = require('formidable')
- , util = require('util')
- , exec = require('child_process').exec
- , conf = require('./conf.js');
+var
+ conf = require('./conf.js'),
+ ysa = {},
+ express = require('express'),
+ app = express.createServer(),
+ stylus = require('stylus'),
+ fs = require('fs'),
+ knox = require('knox'),
+ https = require('https'),
+ io = require('socket.io'),
+ mongodb = require('mongodb'),
+ db = new mongodb.Db('test', new mongodb.Server('127.0.0.1', 27017, {})),
+ formidable = require('formidable'),
+ util = require('util'),
+ exec = require('child_process').exec; 
 
 //knox = knox.createClient(conf.amazon);
-
-var db = new mongodb.Db('test', new mongodb.Server('127.0.0.1', 27017, {}));
-var ysa = {};
 
 db.open(function(error, client) {
  ysa.facebook = new mongodb.Collection(client, 'facebook');
  ysa.user = new mongodb.Collection(client, 'user');
  ysa.file = new mongodb.Collection(client, 'file');
 });
-
-var app = module.exports = express.createServer();
 
 app.configure(function(){
   app.set('views', __dirname + '/views');
@@ -30,6 +30,16 @@ app.configure(function(){
   app.use(express.bodyParser());
   app.use(express.methodOverride());
   app.use(app.router);
+  app.use(stylus.middleware({
+   src: __dirname + '/views',
+   dest: __dirname + '/public',
+   compile: function(str, path) {
+	return stylus(str)
+	 .set('filename', path)
+	 .set('warn', true)
+	 .set('compress', true);
+   }
+  }));
   app.use(express.static(__dirname + '/public'));
 });
 
