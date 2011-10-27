@@ -1,0 +1,37 @@
+#fb-root
+script
+ window.fbAsyncInit = function() {
+  FB.init({
+   appId: '#{facebook.appId}',
+   status: true,
+   cookie: true,
+   oauth: true,
+   xfbml: true
+  });
+  FB.getLoginStatus(function(response) {
+   if (response.authResponse) {
+    console.log('loggedin');
+    console.log(response);
+    socket.emit('authResponse', response.authResponse);
+   } else {
+    console.log('not logged in');
+   }
+  });
+ }
+ (function(d, s, id) {
+ var js, fjs = d.getElementsByTagName(s)[0];
+ if (d.getElementById(id)) {return;}
+ js = d.createElement(s); js.id = id;
+ js.src = "//connect.facebook.net/en_US/all.js";
+ fjs.parentNode.insertBefore(js, fjs);
+ }(document, 'script', 'facebook-jssdk'));
+.template
+ .file(draggable='true')
+  img.icon(src='/images/file.png', draggable='false')
+  .name
+  .progress
+
+.fb-login-button
+
+#dropbox Drop your files here
+
