@@ -11,6 +11,12 @@ $(function() {
   $('.progress').text(Math.round(100 * data));
  });
 
+ file.forEach(function(f, index, array) {
+  $('.template .file').clone()
+   .find('.name').text(f.name).end()
+   .appendTo('body');
+ });
+
  $.event.props.push('dataTransfer');
  $('#dropbox').bind('dragover', false);
  $('#dropbox').bind('drop', function(event) {
@@ -23,7 +29,6 @@ $(function() {
 */
    var formData = new FormData();
    formData.append(f.name, f);
-
 
    $('.template .file').clone()
     .find('.name').text(f.name).end()

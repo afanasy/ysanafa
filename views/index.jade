@@ -1,3 +1,5 @@
+script
+ file = !{file}
 #fb-root
 script
  window.fbAsyncInit = function() {
@@ -8,15 +10,16 @@ script
    oauth: true,
    xfbml: true
   });
-  FB.getLoginStatus(function(response) {
-   if (response.authResponse) {
-    console.log('loggedin');
-    console.log(response);
-    socket.emit('authResponse', response.authResponse);
-   } else {
-    console.log('not logged in');
-   }
-  });
+  //
+   FB.getLoginStatus(function(response) {
+    if (response.authResponse) {
+     console.log('loggedin');
+     console.log(response);
+     socket.emit('authResponse', response.authResponse);
+    } else {
+     console.log('not logged in');
+    }
+   });
  }
  (function(d, s, id) {
  var js, fjs = d.getElementsByTagName(s)[0];
