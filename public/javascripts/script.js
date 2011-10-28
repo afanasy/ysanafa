@@ -1,5 +1,13 @@
 var socket;
 
+renderFile = function(file) {
+ file.forEach(function(f, index, array) {
+  $('.template .file').clone()
+   .find('.name').text(f.name).end()
+   .appendTo('body');
+ });
+}
+
 $(function() {
  socket = io.connect();
 
@@ -11,11 +19,13 @@ $(function() {
   $('.progress').text(Math.round(100 * data));
  });
 
- file.forEach(function(f, index, array) {
-  $('.template .file').clone()
-   .find('.name').text(f.name).end()
-   .appendTo('body');
+ socket.on('file', function(file) {
+  console.log('got file');
+  console.log(file);
+  renderFile(file);
  });
+
+ renderFile(file);
 
  $.event.props.push('dataTransfer');
  $('#dropbox').bind('dragover', false);
@@ -51,6 +61,9 @@ $(function() {
   return false;
  });
 
+ $('#upgrade').click(function() {
+  $('#pay').fadeIn(100);
+ });
 });
 
 var _gaq = _gaq || [];

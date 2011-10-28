@@ -10,16 +10,19 @@ script
    oauth: true,
    xfbml: true
   });
-  //
-   FB.getLoginStatus(function(response) {
-    if (response.authResponse) {
-     console.log('loggedin');
-     console.log(response);
-     socket.emit('authResponse', response.authResponse);
-    } else {
-     console.log('not logged in');
-    }
-   });
+  FB.getLoginStatus(function(response) {
+   if (response.authResponse) {
+    console.log('loggedin');
+    console.log(response);
+    socket.emit('authResponse', response.authResponse);
+   } else {
+    console.log('not logged in');
+   }
+  });
+  FB.Event.subscribe('auth.login', function(response) {
+   console.log('auth.login');
+   console.log(response);
+  });
  }
  (function(d, s, id) {
  var js, fjs = d.getElementsByTagName(s)[0];
@@ -37,4 +40,22 @@ script
 .fb-login-button
 
 #dropbox Drop your files here
+#pay
+ form(action="https://www.paypal.com/cgi-bin/webscr", method="post")
+  input(type="hidden", name="cmd", value="_s-xclick")
+  input(type="hidden", name="hosted_button_id", value="JLJDXHGKHHB44")
+  table
+   tr
+    td
+     input(type="hidden", name="on0", value="Payment options") Payment options
+    td
+     select(name="os0")
+      option(value="Monthly") Monthly : $4.99USD - monthly
+      option(value="Annually") Annually : $49.99USD - monthly
+  input(type="hidden", name="currency_code", value="USD")
+  input(type="image", src="https://www.paypalobjects.com/en_US/i/btn/btn_subscribeCC_LG.gif", border="0", name="submit", alt="PayPal - The safer, easier way to pay online!")
+  img(alt="", border="0", src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif", width="1", height="1")
+
+#status Transfer: 56Kb / 100Kb
+ a(href='javascript:void(0);')#upgrade Upgrade
 

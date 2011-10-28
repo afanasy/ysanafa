@@ -3,13 +3,16 @@ var
  ysa = {},
  express = require('express'),
  app = express.createServer(),
+ sessionStore = new express.session.MemoryStore(),
+ parseCookie = require('connect').utils.parseCookie,
+ Session = require('connect').middleware.session.Session,
  stylus = require('stylus'),
  fs = require('fs'),
  knox = require('knox'),
  https = require('https'),
  io = require('socket.io'),
  mongodb = require('mongodb'),
- db = new mongodb.Db('test', new mongodb.Server('127.0.0.1', 27017, {})),
+ db = new mongodb.Db('ysanafa', new mongodb.Server('127.0.0.1', 27017, {})),
  formidable = require('formidable'),
  util = require('util'),
  exec = require('child_process').exec; 
@@ -40,7 +43,11 @@ app.configure(function(){
  app.set('views', __dirname + '/views');
  app.set('view engine', 'jade');
  app.use(express.cookieParser());
- app.use(express.session({'key': 'sid', 'secret': 'secret'}));
+ app.use(express.session({
+  key: 'sid',
+  secret: '11836346561347611899',
+  store: sessionStore
+ }));
  app.use(express.bodyParser());
  app.use(express.methodOverride());
  app.use(app.router);
@@ -66,9 +73,7 @@ app.configure('production', function(){
 });
 
 app.get('/', function(req, res) {
- console.log('get /');
  ysa.session(req, function() {
-  console.log('render');
   res.render('index', {
    'title': 'Ysanafa',
    'file': JSON.stringify(req.session.user.file),
@@ -77,6 +82,9 @@ app.get('/', function(req, res) {
    }
   });
  });
+});
+app.get('/facebookApp', function(req, res) {
+ res.end();
 });
 app.get('/status', function(req, res) {
  res.send('connections: ' + io.sockets.n + '<br>memory: ' + util.inspect(process.memoryUsage()));
@@ -167,12 +175,36 @@ app.listen(8000);
 io = io.listen(app);
 io.sockets.n = 0;
 
+io.configure(function () {
+ io.set('authorization', function (data, accept) {
+  if(data.headers.cookie) {
+   data.cookie = parseCookie(data.headers.cookie);
+   data.sessionID = data.cookie.sid;
+   sessionStore.get(data.sessionID, function (err, session) {
+    if (err)
+     accept(err.message, false); 
+    else {
+     data.session = new Session(data, session);
+     accept(null, true);
+    }
+   });
+  }
+  else
+   accept('no cookie transmitted', false);
+ });
+});
+
+
 io.sockets.on('connection', function (socket) {
  io.sockets.n ++;
+ session = socket.handshake.session;
  socket.on('authResponse', function(data) {
   console.log('authResponse');
   console.log(data);
+  console.log(session);
   ysa.facebook.update({userID: data['userID']}, {$set: data}, {upsert: true});
+  socket.emit('file', session.user.file);
+ 
 /*
   https.get({
    'host': 'graph.facebook.com',
