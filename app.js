@@ -10,7 +10,7 @@ var
  fs = require('fs'),
  knox = require('knox'),
  https = require('https'),
- io = require('socket.io'),
+ io = require('socket.io').listen(app),
  mongodb = require('mongodb'),
  db = new mongodb.Db('ysanafa', new mongodb.Server('127.0.0.1', 27017, {})),
  formidable = require('formidable'),
@@ -32,6 +32,8 @@ ysa.session = function(req, callback) {
   callback();
 }
 //knox = knox.createClient(conf.amazon);
+
+//console.log(require('tty').isatty(process.stdout.fd));
 
 db.open(function(error, client) {
  ysa.facebook = new mongodb.Collection(client, 'facebook');
@@ -170,9 +172,6 @@ app.post('/upload', function(req, res) {
 */
 });
 
-app.listen(8000);
-
-io = io.listen(app);
 io.sockets.n = 0;
 
 io.configure(function () {
@@ -229,4 +228,5 @@ io.sockets.on('connection', function (socket) {
  });
 });
 
-console.log("Ysanafa listening on port %d in %s mode", app.address().port, app.settings.env);
+app.listen(8000);
+io.log.info("Ysanafa listening on port %d in %s mode", app.address().port, app.settings.env);
