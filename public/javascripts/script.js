@@ -1,6 +1,4 @@
 var _gaq = _gaq || [];
-_gaq.push(['_setAccount', 'UA-16645901-1']);
-_gaq.push(['_trackPageview']);
 
 (function() {
  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
@@ -11,9 +9,13 @@ _gaq.push(['_trackPageview']);
 var socket;
 
 renderFile = function(file) {
- $('.template .file').clone()
+ return $('.template .file').clone()
+  .find('a').attr('href', '/f/' + file._id).end()
   .find('.name').text(file.name).end()
-  .appendTo('body');
+  .bind('dragstart', function(event) {
+   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + document.domain + '/f/' + '4eabfcfd75520eb89843cb54');
+  })
+  .appendTo('body').get()[0];
 }
 
 $(function() {
@@ -27,10 +29,11 @@ $(function() {
   $('.progress').text(Math.round(100 * data));
  });
 
- socket.on('file', function(file) {
+ socket.on('file', function(f) {
   console.log('got file');
-  console.log(file);
-  renderFile(file);
+  console.log(file[f.name]);
+  $(file[f.name].element)
+   .find('a').attr('href', f._id);
  });
 
  for(name in file)
@@ -46,10 +49,19 @@ $(function() {
    }})(f);
    fileReader.readAsBinaryString(f);
 */
-   var formData = new FormData();
-   formData.append(f.name, f);
+   name = f.name;
+   if(file[name])
+    name += ' (2)';
 
-   renderFile(f);
+   var formData = new FormData();
+   formData.append(name, f);
+
+   file[name] = {
+    'name': name
+   }
+   file[name].element = renderFile(file[name]);
+
+   console.log(file[name]);
 
    $.ajax({
     'type': 'POST',
@@ -66,6 +78,12 @@ $(function() {
 
   }
   return false;
+ });
+
+ $('.template .file').bind('dragstart', function(event) {
+  console.log('dragstart');
+//  console.log('set dataTransfer');
+//  event.dataTransfer.setData('DownloadURL', 'image/png:ffff.png:http://ysanafa.com:8000/f/4eabfcfd75520eb89843cb54');
  });
 
  $('#upgrade').click(function() {

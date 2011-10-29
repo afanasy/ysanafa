@@ -24,6 +24,7 @@ ysa.session = function(req, callback) {
    ysa.file.find({'user._id': String(user._id)}).toArray(function(err, file) {
     user.file = {};
     file.forEach(function(f) {
+console.log(f);
      user.file[f.name] = f;
     });
     req.session.user = user;
@@ -53,7 +54,7 @@ app.configure(function(){
  app.use(express.cookieParser());
  app.use(express.session({
   key: 'sid',
-  secret: '11836346561347611899',
+  secret: conf.secret,
   store: sessionStore
  }));
  app.use(express.bodyParser());
@@ -87,7 +88,9 @@ app.get('/', function(req, res) {
    'file': JSON.stringify(req.session.user.file),
    'facebook': {
     'appId': conf.facebook.appId
-   }
+   },
+   'ga': conf.ga,
+   'paypal': conf.paypal
   });
  });
 });
@@ -119,6 +122,7 @@ app.post('/upload', function(req, res) {
    user = req.session.user;
    for(name in file) {
     f = file[name];
+    f.name = name;
     io.log.info('upload ' + f.name);
     exec('md5sum ' + f.path, function (error, stdout, stderr) {
      md5sum = stdout.substr(0, 32);
@@ -138,13 +142,16 @@ app.post('/upload', function(req, res) {
        'size': f.size
       }
      }
-console.log(userFile);
+
      user.file[userFile.name] = userFile;
      req.session.user = user;
      req.session.save();
 
-     ysa.file.update({'user._id': userFile.user._id, name: userFile.name}, {$set: userFile}, {upsert: true, safe: true}, function(err) {
+     ysa.file.findAndModify({'user._id': userFile.user._id, name: userFile.name}, [['_id','asc']], {$set: userFile}, {upsert: true, new: true}, function(err, file) {
+
      });
+     console.log('emit file');
+     io.sockets.emit('file', userFile);
     });
    }
 
