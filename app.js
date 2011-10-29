@@ -19,11 +19,16 @@ var
 
 ysa.session = function(req, callback) {
  if(!req.session.user) {
+  console.log('restore user');
   ysa.user.findAndModify({'sid': req.cookies['sid']}, [['_id','asc']], {$set: {'sid': req.sessionID}}, {'upsert': true, 'new': true}, function(err, user) {
    ysa.file.find({'user._id': String(user._id)}).toArray(function(err, file) {
-    user.file = file;
+    user.file = {};
+    file.forEach(function(f) {
+     user.file[f.name] = f;
+    });
     req.session.user = user;
     req.session.save();
+    console.log(user);
     callback();
    });
   });
@@ -31,6 +36,7 @@ ysa.session = function(req, callback) {
  else
   callback();
 }
+
 //knox = knox.createClient(conf.amazon);
 
 //console.log(require('tty').isatty(process.stdout.fd));
@@ -109,19 +115,21 @@ app.get('/f/:id([a-f0-9]{24})', function(req, res) {
 app.post('/upload', function(req, res) {
  ysa.session(req, function() {
   var form = new formidable.IncomingForm();
-  form.parse(req, function(err, fields, files) {
-   for(name in files) {
-    f = files[name];
-    exec('md5sum ' + f['path'], function (error, stdout, stderr) {
+  form.parse(req, function(err, fields, file) {
+   user = req.session.user;
+   for(name in file) {
+    f = file[name];
+    io.log.info('upload ' + f.name);
+    exec('md5sum ' + f.path, function (error, stdout, stderr) {
      md5sum = stdout.substr(0, 32);
      path = '/data/test/' + md5sum;
      fs.stat(path, function(err, stats) {
       if(err)
-       fs.rename(f['path'], path);
+       fs.rename(f.path, path);
      });
-     file = {
+     userFile = {
       'user': {
-       '_id': req.session.user._id
+       '_id': user._id
       },
       'name': f.name,
       'type': f.type,
@@ -130,20 +138,19 @@ app.post('/upload', function(req, res) {
        'size': f.size
       }
      }
-//    user = req.session.user;
-     req.session.user.file = req.session.user.file || [];
-     req.session.user.file.push(file);
+console.log(userFile);
+     user.file[userFile.name] = userFile;
+     req.session.user = user;
      req.session.save();
-     ysa.file.update({'user._id': file.user._id, name: file.name}, {$set: file}, {upsert: true, safe: true}, function(err) {
-      console.log(err);
-      console.log('file update');
+
+     ysa.file.update({'user._id': userFile.user._id, name: userFile.name}, {$set: userFile}, {upsert: true, safe: true}, function(err) {
      });
     });
    }
 
    res.writeHead(200, {'content-type': 'text/plain'});
    res.write('received upload:\n\n');
-   res.end(util.inspect({fields: fields, files: files}));
+   res.end(util.inspect({fields: fields, file: file}));
   });
   form.on('progress', function(bytesReceived, bytesExpected) {
    progress = bytesReceived / bytesExpected;
@@ -197,12 +204,13 @@ io.configure(function () {
 io.sockets.on('connection', function (socket) {
  io.sockets.n ++;
  session = socket.handshake.session;
+ console.log(session);
  socket.on('authResponse', function(data) {
-  console.log('authResponse');
-  console.log(data);
-  console.log(session);
+//  console.log('authResponse');
+//  console.log(data);
+//  console.log(session);
   ysa.facebook.update({userID: data['userID']}, {$set: data}, {upsert: true});
-  socket.emit('file', session.user.file);
+//  socket.emit('file', session.user.file);
  
 /*
   https.get({
@@ -229,4 +237,4 @@ io.sockets.on('connection', function (socket) {
 });
 
 app.listen(8000);
-io.log.info("Ysanafa listening on port %d in %s mode", app.address().port, app.settings.env);
+io.log.info('Ysanafa listening on port ' + app.address().port + ' in ' + app.settings.env + ' mode');
