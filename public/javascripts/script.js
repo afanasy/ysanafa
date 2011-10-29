@@ -1,4 +1,10 @@
-var _gaq = _gaq || [];
+(function(d, s, id) {
+ var js, fjs = d.getElementsByTagName(s)[0];
+ if (d.getElementById(id)) {return;}
+ js = d.createElement(s); js.id = id;
+ js.src = "//connect.facebook.net/en_US/all.js";
+ fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));
 
 (function() {
  var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
@@ -13,16 +19,19 @@ renderFile = function(file) {
   .find('a').attr('href', '/f/' + file._id).end()
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
-   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + document.domain + '/f/' + '4eabfcfd75520eb89843cb54');
+   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + file._id);
   })
-  .appendTo('body').get()[0];
+  .appendTo('#dropbox').get()[0];
 }
 
 $(function() {
  socket = io.connect();
 
- socket.on('user', function (data) {
-  console.log(data);
+ socket.on('user', function (user) {
+  $('#user')
+   .find('.name').text(user.name).end()
+   .find('.icon').attr('src',  'https://graph.facebook.com/' + user.facebook.id + '/picture').end();
+  console.log(user);
  });
 
  socket.on('progress', function(data) {
@@ -88,5 +97,35 @@ $(function() {
 
  $('#upgrade').click(function() {
   $('#pay').fadeIn(100);
+ });
+
+ window.fbAsyncInit = function() {
+  FB.init({
+   appId: facebook.appId,
+   status: true,
+   cookie: true,
+   oauth: true,
+   xfbml: true
+  });
+  FB.getLoginStatus(function(response) {
+   if (response.authResponse) {
+    console.log('loggedin');
+    console.log(response);
+    socket.emit('authResponse', response.authResponse);
+    $('.login').fadeOut(500, function() {
+     $('.logout').fadeIn(500);
+    });
+   } else {
+    console.log('not logged in');
+   }
+  });
+  FB.Event.subscribe('auth.login', function(response) {
+   console.log('auth.login');
+   socket.emit('authResponse', response.authResponse);
+  });
+ }
+
+ $('#user .login').bind('click', function() {
+  FB.login();
  });
 });

@@ -24,7 +24,6 @@ ysa.session = function(req, callback) {
    ysa.file.find({'user._id': String(user._id)}).toArray(function(err, file) {
     user.file = {};
     file.forEach(function(f) {
-console.log(f);
      user.file[f.name] = f;
     });
     req.session.user = user;
@@ -41,11 +40,15 @@ console.log(f);
 //knox = knox.createClient(conf.amazon);
 
 //console.log(require('tty').isatty(process.stdout.fd));
+db.oid = function(id) {
+ return db.bson_serializer.ObjectID(String(id));
+}
 
 db.open(function(error, client) {
- ysa.facebook = new mongodb.Collection(client, 'facebook');
  ysa.user = new mongodb.Collection(client, 'user');
  ysa.file = new mongodb.Collection(client, 'file');
+ ysa.facebookUser = new mongodb.Collection(client, 'facebookUser');
+ ysa.transfer = new mongodb.Collection(client, 'transfer');
 });
 
 app.configure(function(){
@@ -86,9 +89,9 @@ app.get('/', function(req, res) {
   res.render('index', {
    'title': 'Ysanafa',
    'file': JSON.stringify(req.session.user.file),
-   'facebook': {
+   'facebook': JSON.stringify({
     'appId': conf.facebook.appId
-   },
+   }),
    'ga': conf.ga,
    'paypal': conf.paypal
   });
@@ -111,6 +114,9 @@ app.get('/f/:id([a-f0-9]{24})', function(req, res) {
    });
    readStream.on('open', function() {
     res.writeHead(200, {'Content-Type': 'image/png'});
+   });
+   readStream.on('end', function() {
+    ysa.transfer.insert({user: {_id: file.user._id}, size: file.data.size, type: 'out'});
    });
   });
  });
@@ -148,18 +154,22 @@ app.post('/upload', function(req, res) {
      req.session.save();
 
      ysa.file.findAndModify({'user._id': userFile.user._id, name: userFile.name}, [['_id','asc']], {$set: userFile}, {upsert: true, new: true}, function(err, file) {
-
+      ysa.transfer.insert({user: {_id: userFile.user._id}, size: userFile.data.size, type: 'in'});
      });
+     
      console.log('emit file');
      io.sockets.emit('file', userFile);
     });
    }
 
+//  knox.putFile('/data/test/a', '/data/a', function(err, res){
+//  }); 
+
    res.writeHead(200, {'content-type': 'text/plain'});
    res.write('received upload:\n\n');
    res.end(util.inspect({fields: fields, file: file}));
   });
-  form.on('progress', function(bytesReceived, bytesExpected) {
+  form.on('progress', function(bytesReceived, bytesExpected) {   
    progress = bytesReceived / bytesExpected;
    if(!req.updateProgress)
     req.updateProgress = new Date().getTime();
@@ -170,20 +180,6 @@ app.post('/upload', function(req, res) {
    }
   });
  });
-/*
- path = '/data/test/' + (new Date().getTime());
- req.stream = fs.createWriteStream(path, {flags: 'a'});
- req.addListener('data', function(data) {
-  if(!req.boundary)
-   console.log(data.match(/(.*)\n/));
-  req.stream.write(data);
- });
- req.addListener('end', function() {
-//  knox.putFile('/data/test/a', '/data/a', function(err, res){
-//  }); 
-  res.send('got something');
- });
-*/
 });
 
 io.sockets.n = 0;
@@ -213,13 +209,13 @@ io.sockets.on('connection', function (socket) {
  session = socket.handshake.session;
  console.log(session);
  socket.on('authResponse', function(data) {
-//  console.log('authResponse');
-//  console.log(data);
-//  console.log(session);
-  ysa.facebook.update({userID: data['userID']}, {$set: data}, {upsert: true});
+  console.log('authResponse');
+  console.log(data);
+  console.log(session);
+//  ysa.facebook.update({userID: data['userID']}, {$set: data}, {upsert: true});
 //  socket.emit('file', session.user.file);
  
-/*
+
   https.get({
    'host': 'graph.facebook.com',
    'path': '/me?access_token=' + data['accessToken']
@@ -232,11 +228,21 @@ io.sockets.on('connection', function (socket) {
    res.on('end', function() {
     console.log('end');
     console.log(res.data);
-    uuser.update({id: res.data['id']}, {$set: res.data}, {upsert: true});
-    socket.emit('user', res.data);
+    data = JSON.parse(res.data);
+    console.log(data.id);
+    if(data.id) {
+     console.log('create user');
+     ysa.facebookUser.update({id: data.id}, {$set: data}, {upsert: true});
+     ysa.user.update({_id: db.oid(session.user._id)}, {$set: {'facebook': {'id' : data.id}}});
+     session.user.facebook = {id: data.id};
+    }
+//    uuser.update({id: res.data['id']}, {$set: res.data}, {upsert: true});
+    socket.emit('user', {
+     'facebook': {id: data.id},
+     'name': data.first_name
+    });
    }); 
   });
-*/
  });
  socket.on('disconnect', function() {
   io.sockets.n --;
@@ -244,4 +250,4 @@ io.sockets.on('connection', function (socket) {
 });
 
 app.listen(8000);
-io.log.info('Ysanafa listening on port ' + app.address().port + ' in ' + app.settings.env + ' mode');
+io.log.info('ysanafa listening on port ' + app.address().port + ' in ' + app.settings.env + ' mode');
