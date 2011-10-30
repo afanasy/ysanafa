@@ -15,26 +15,37 @@ var
  db = new mongodb.Db('ysanafa', new mongodb.Server('127.0.0.1', 27017, {})),
  formidable = require('formidable'),
  util = require('util'),
- exec = require('child_process').exec; 
+ exec = require('child_process').exec,
+ hashlib = require('hashlib'); 
 
 ysa.session = function(req, callback) {
- if(!req.session.user) {
-  console.log('restore user');
-  ysa.user.findAndModify({'sid': req.cookies['sid']}, [['_id','asc']], {$set: {'sid': req.sessionID}}, {'upsert': true, 'new': true}, function(err, user) {
-   ysa.file.find({'user._id': String(user._id)}).toArray(function(err, file) {
-    user.file = {};
-    file.forEach(function(f) {
-     user.file[f.name] = f;
-    });
-    req.session.user = user;
-    req.session.save();
-    console.log(user);
-    callback();
-   });
+ if(req.session.user) {
+  console.log('session here already');
+  console.log(req.session);
+  req.sessionReady = true;
+  callback(req);
+  return;
+ }
+
+ var save = function(user) {
+  console.log('saving session');
+  req.session.user = user;
+  req.session.save(function(err) {
+   req.sessionReady = true;
+   callback(req);
   });
  }
- else
-  callback();
+
+ ysa.user.findAndModify({'sid': req.cookies['sid']}, [['_id','asc']], {$set: {'sid.$': req.sessionID}}, {'new': true}, function(err, user) {
+  if(!user) {
+   user = {'sid': [req.sessionID]};
+   ysa.user.insert(user, {safe: true}, function(err, user) {
+    save(user[0]);
+   });
+  }
+  else
+   save(user);
+ });
 }
 
 //knox = knox.createClient(conf.amazon);
@@ -51,7 +62,7 @@ db.open(function(error, client) {
  ysa.transfer = new mongodb.Collection(client, 'transfer');
 });
 
-app.configure(function(){
+app.configure(function() {
  app.set('views', __dirname + '/views');
  app.set('view engine', 'jade');
  app.use(express.cookieParser());
@@ -76,22 +87,20 @@ app.configure(function(){
  app.use(express.static(__dirname + '/public'));
 });
 
-app.configure('development', function(){
+app.configure('development', function() {
  app.use(express.errorHandler({ dumpExceptions: true, showStack: true })); 
 });
 
-app.configure('production', function(){
+app.configure('production', function() {
  app.use(express.errorHandler()); 
 });
 
 app.get('/', function(req, res) {
- ysa.session(req, function() {
+ ysa.session(req, function(req) {
   res.render('index', {
    'title': 'Ysanafa',
-   'file': JSON.stringify(req.session.user.file),
-   'facebook': JSON.stringify({
-    'appId': conf.facebook.appId
-   }),
+   'user': JSON.stringify(req.session.user),
+   'facebook': JSON.stringify({'appId': conf.facebook.appId}),
    'ga': conf.ga,
    'paypal': conf.paypal
   });
@@ -103,9 +112,12 @@ app.get('/facebookApp', function(req, res) {
 app.get('/status', function(req, res) {
  res.send('connections: ' + io.sockets.n + '<br>memory: ' + util.inspect(process.memoryUsage()));
 });
-app.get('/f/:id([a-f0-9]{24})', function(req, res) {
- ysa.session(req, function() {
-  ysa.file.findOne({'_id': db.bson_serializer.ObjectID(String(req.params.id))}, function(err, file) {
+app.get('/f/:id([a-f0-9]{56})', function(req, res) {
+ ysa.session(req, function(req) {
+  var find = {'_id': db.oid(req.params.id.substr(0, 24))};
+  find['file.' + req.params.id.substr(24, 32)] = {$exists: true};
+  ysa.user.findOne(find, function(err, user) {
+   var file = user.file[req.params.id.substr(24, 32)];
    readStream = fs.createReadStream('/data/test/' + file.data.path);
    readStream.pipe(res);
    readStream.on('error', function () {
@@ -113,42 +125,77 @@ app.get('/f/:id([a-f0-9]{24})', function(req, res) {
     res.end();
    });
    readStream.on('open', function() {
-    res.writeHead(200, {'Content-Type': 'image/png'});
+    res.writeHead(200, {'Content-Type': file.type});
    });
    readStream.on('end', function() {
-    ysa.transfer.insert({user: {_id: file.user._id}, size: file.data.size, type: 'out'});
+//    ysa.transfer.insert({user: {_id: file.user._id}, size: file.data.size, type: 'out'});
    });
   });
  });
 });
 app.post('/upload', function(req, res) {
- ysa.session(req, function() {
-  var form = new formidable.IncomingForm();
-  form.parse(req, function(err, fields, file) {
-   user = req.session.user;
-   for(name in file) {
-    f = file[name];
-    f.name = name;
-    io.log.info('upload ' + f.name);
-    exec('md5sum ' + f.path, function (error, stdout, stderr) {
-     md5sum = stdout.substr(0, 32);
-     path = '/data/test/' + md5sum;
-     fs.stat(path, function(err, stats) {
-      if(err)
-       fs.rename(f.path, path);
-     });
-     userFile = {
-      'user': {
-       '_id': user._id
-      },
-      'name': f.name,
-      'type': f.type,
-      'data': {
-       'path': md5sum,
-       'size': f.size
-      }
-     }
+ io.log.info('upload started');
+ var respond = function(req) {
+  if(!req.sessionReady || !req.upload)
+   return;
+  for(name in req.upload)
+   if(!req.upload[name].data.path)
+    return;
 
+  for(name in req.upload) {
+   var f = req.upload[name];
+   var file = {};
+   file['file.' + name] = f;
+   ysa.user.findAndModify({'_id': db.oid(req.session.user._id)}, [['_id','asc']], {$set: file}, {upsert: true, new: true}, function(err, user) {});
+   io.sockets.emit('file', f);
+  }
+  res.writeHead(200, {'content-type': 'text/plain'});
+  res.write('received upload:\n\n');
+  res.end(util.inspect(req.upload));
+ }
+
+ ysa.session(req, respond);
+
+ var form = new formidable.IncomingForm();
+ form.parse(req, function(err, fields, file) {
+  if(err) {
+   io.log.info('upload failed: ' + err.message);
+   return;
+  }
+  var user = req.session.user;
+  req.upload = {};
+  for(name in file) {
+   var f = file[name];
+   f.name = name;
+   io.log.info('upload ' + f.name);
+
+   req.upload[hashlib.md5(f.name)] = {
+    'name': f.name,
+    'type': f.type,
+    'data': {
+     'size': f.size
+    }
+   }
+   
+   exec('md5sum ' + f.path, function (error, stdout, stderr) {
+    md5sum = stdout.substr(0, 32);
+    path = '/data/test/' + md5sum;
+    fs.stat(path, function(err, stats) {
+     if(err)
+      fs.rename(f.path, path);
+    });
+
+    req.upload[hashlib.md5(f.name)].data.path = md5sum;
+
+    user.file = user.file || {};
+    user.file[hashlib.md5(f.name)] = f;
+
+    req.session.user = user;
+    req.session.save();
+
+    respond(req);
+/*
+     user.file = user.file || {};
      user.file[userFile.name] = userFile;
      req.session.user = user;
      req.session.save();
@@ -156,29 +203,28 @@ app.post('/upload', function(req, res) {
      ysa.file.findAndModify({'user._id': userFile.user._id, name: userFile.name}, [['_id','asc']], {$set: userFile}, {upsert: true, new: true}, function(err, file) {
       ysa.transfer.insert({user: {_id: userFile.user._id}, size: userFile.data.size, type: 'in'});
      });
-     
-     console.log('emit file');
-     io.sockets.emit('file', userFile);
+*/     
+//     console.log('emit file');
+//     io.sockets.emit('file', userFile);
     });
    }
 
-//  knox.putFile('/data/test/a', '/data/a', function(err, res){
-//  }); 
-
+//  knox.putFile('/data/test/a', '/data/a', function(err, res) {}); 
+/*
    res.writeHead(200, {'content-type': 'text/plain'});
    res.write('received upload:\n\n');
    res.end(util.inspect({fields: fields, file: file}));
+*/
   });
-  form.on('progress', function(bytesReceived, bytesExpected) {   
-   progress = bytesReceived / bytesExpected;
-   if(!req.updateProgress)
-    req.updateProgress = new Date().getTime();
-   now = Date.now();
-   if((now > req.updateProgress) || (progress == 1)) {
-    io.sockets.emit('progress', progress);
-    req.updateProgress = now + 500;
-   }
-  });
+ form.on('progress', function(bytesReceived, bytesExpected) {   
+  progress = bytesReceived / bytesExpected;
+  if(!req.updateProgress)
+   req.updateProgress = new Date().getTime();
+  now = Date.now();
+  if((now > req.updateProgress) || (progress == 1)) {
+   io.sockets.emit('progress', progress);
+   req.updateProgress = now + 500;
+  }
  });
 });
 

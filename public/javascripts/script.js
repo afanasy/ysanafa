@@ -16,10 +16,10 @@ var socket;
 
 renderFile = function(file) {
  return $('.template .file').clone()
-  .find('a').attr('href', '/f/' + file._id).end()
+  .find('a').attr('href', '/f/' + user._id + hex_md5(file.name)).end()
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
-   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + file._id);
+   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + hex_md5(file.name));
   })
   .appendTo('#dropbox').get()[0];
 }
@@ -39,14 +39,12 @@ $(function() {
  });
 
  socket.on('file', function(f) {
-  console.log('got file');
-  console.log(file[f.name]);
-  $(file[f.name].element)
+  $(user.file[hex_md5(f.name)].element)
    .find('a').attr('href', f._id);
  });
 
- for(name in file)
-  renderFile(file[name]);
+ for(name in user.file)
+  user.file[name].element = renderFile(user.file[name]);
 
  $.event.props.push('dataTransfer');
  $('#dropbox').bind('dragover', false);
@@ -59,18 +57,18 @@ $(function() {
    fileReader.readAsBinaryString(f);
 */
    name = f.name;
-   if(file[name])
+   if(user.file[name])
     name += ' (2)';
 
    var formData = new FormData();
    formData.append(name, f);
 
-   file[name] = {
+   user.file[hex_md5(name)] = {
     'name': name
    }
-   file[name].element = renderFile(file[name]);
+   user.file[hex_md5(name)].element = renderFile(user.file[hex_md5(name)]);
 
-   console.log(file[name]);
+   console.log(user.file[hex_md5(name)]);
 
    $.ajax({
     'type': 'POST',
