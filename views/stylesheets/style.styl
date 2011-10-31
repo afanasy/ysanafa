@@ -18,24 +18,31 @@ a
  position: absolute
  top: 10px
  right: 10px
-
-#user span
- vertical-align: middle
+ border-radius 10px
+ z-index 1
 
 .login
- cursor: pointer
+ display none
+ cursor pointer
+ border-radius 10px
 
 .logout
- display: none
+ display none
 
-.icon
- vertical-align: middle
- border-radius: 10px
+.logout .icon
+ width 50px
+ height 50px
+ border-radius 10px
+ vertical-align middle
 
-.name
+.logout .name
  font-size: 24px
  margin-left: 10px
  vertical-align: middle
+ padding 0px 10px 0px 10px
+
+.file .name
+ font-size: 18px
 
 #headline
  font-size 32px
@@ -53,7 +60,7 @@ a
 #dropbox
  font-size 32px
  position fixed
- top 70px
+ top 0px
  right 0px
  bottom 70px
  left 0px

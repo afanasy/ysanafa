@@ -14,6 +14,12 @@
 
 var socket;
 
+renderUser = function(user) {
+ $('#user')
+  .find('.name').text(user.facebook.first_name).end()
+  .find('.icon').attr('src',  'https://graph.facebook.com/' + user.facebook.id + '/picture').end();
+}
+
 renderFile = function(file) {
  return $('.template .file').clone()
   .find('a').attr('href', '/f/' + user._id + hex_md5(file.name)).end()
@@ -27,11 +33,11 @@ renderFile = function(file) {
 $(function() {
  socket = io.connect();
 
- socket.on('user', function (user) {
-  $('#user')
-   .find('.name').text(user.name).end()
-   .find('.icon').attr('src',  'https://graph.facebook.com/' + user.facebook.id + '/picture').end();
-  console.log(user);
+ socket.on('user', function(user) {
+  renderUser(user)
+  $('.login').fadeOut(500, function() {
+   $('.logout').fadeIn(500);
+  });
  });
 
  socket.on('progress', function(data) {
@@ -42,6 +48,19 @@ $(function() {
   $(user.file[hex_md5(f.name)].element)
    .find('a').attr('href', f._id);
  });
+
+ socket.on('logout', function() {
+  FB.logout(function(response) {
+   window.location.reload();
+  });
+ });
+
+ if(user.facebook) {
+  renderUser(user);
+  $('.logout').fadeIn(500);
+ }
+ else
+  $('.login').fadeIn(500);
 
  for(name in user.file)
   user.file[name].element = renderFile(user.file[name]);
@@ -56,19 +75,22 @@ $(function() {
    }})(f);
    fileReader.readAsBinaryString(f);
 */
-   name = f.name;
-   if(user.file[name])
+  
+   var _id = hex_md5(f.name);
+   var name = f.name;
+   user.file = user.file || {};
+   if(user.file[_id])
     name += ' (2)';
 
    var formData = new FormData();
    formData.append(name, f);
 
-   user.file[hex_md5(name)] = {
+   user.file[_id] = {
     'name': name
    }
-   user.file[hex_md5(name)].element = renderFile(user.file[hex_md5(name)]);
+   user.file[_id].element = renderFile(user.file[_id]);
 
-   console.log(user.file[hex_md5(name)]);
+   console.log(user.file[_id]);
 
    $.ajax({
     'type': 'POST',
@@ -105,18 +127,6 @@ $(function() {
    oauth: true,
    xfbml: true
   });
-  FB.getLoginStatus(function(response) {
-   if (response.authResponse) {
-    console.log('loggedin');
-    console.log(response);
-    socket.emit('authResponse', response.authResponse);
-    $('.login').fadeOut(500, function() {
-     $('.logout').fadeIn(500);
-    });
-   } else {
-    console.log('not logged in');
-   }
-  });
   FB.Event.subscribe('auth.login', function(response) {
    console.log('auth.login');
    socket.emit('authResponse', response.authResponse);
@@ -125,5 +135,10 @@ $(function() {
 
  $('#user .login').bind('click', function() {
   FB.login();
+ });
+
+ $('.logout a').click(function() {
+  console.log('logout');
+  socket.emit('logout');
  });
 });

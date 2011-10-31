@@ -43,8 +43,14 @@ ysa.session = function(req, callback) {
     save(user[0]);
    });
   }
-  else
+  else {
+   if(user.facebook)
+    user.facebook = {
+     'id': user.facebook.id,
+     'first_name': user.facebook.first_name
+    };
    save(user);
+  }
  });
 }
 
@@ -252,16 +258,8 @@ io.configure(function () {
 
 io.sockets.on('connection', function (socket) {
  io.sockets.n ++;
- session = socket.handshake.session;
- console.log(session);
+ var session = socket.handshake.session;
  socket.on('authResponse', function(data) {
-  console.log('authResponse');
-  console.log(data);
-  console.log(session);
-//  ysa.facebook.update({userID: data['userID']}, {$set: data}, {upsert: true});
-//  socket.emit('file', session.user.file);
- 
-
   https.get({
    'host': 'graph.facebook.com',
    'path': '/me?access_token=' + data['accessToken']
@@ -278,20 +276,29 @@ io.sockets.on('connection', function (socket) {
     console.log(data.id);
     if(data.id) {
      console.log('create user');
-     ysa.facebookUser.update({id: data.id}, {$set: data}, {upsert: true});
-     ysa.user.update({_id: db.oid(session.user._id)}, {$set: {'facebook': {'id' : data.id}}});
-     session.user.facebook = {id: data.id};
+     ysa.user.update({_id: db.oid(session.user._id)}, {$set: {'facebook': data}});
+     session.user.facebook = data;
+
+     socket.emit('user', {
+      'facebook': {
+       'id': data.id,
+       'first_name': data.first_name
+      }
+     });
     }
-//    uuser.update({id: res.data['id']}, {$set: res.data}, {upsert: true});
-    socket.emit('user', {
-     'facebook': {id: data.id},
-     'name': data.first_name
-    });
    }); 
   });
  });
  socket.on('disconnect', function() {
   io.sockets.n --;
+ });
+ socket.on('logout', function() {
+  console.log('logout');
+  ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: socket.handshake.sessionID}});
+  sessionStore.destroy(socket.handshake.sessionID, function() {
+   console.log('session destroyed');
+   socket.emit('logout');
+  });
  });
 });
 
