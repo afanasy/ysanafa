@@ -25,7 +25,11 @@ renderFile = function(file) {
   .find('a').attr('href', '/f/' + user._id + hex_md5(file.name)).end()
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
+   $('#trash').fadeIn(500);
    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + hex_md5(file.name));
+  })
+  .bind('dragend', function(event) {
+   $('#trash').fadeOut(100);
   })
   .appendTo('#dropbox').get()[0];
 }
@@ -116,7 +120,7 @@ $(function() {
  });
 
  $('#upgrade').click(function() {
-  $('#pay').fadeIn(100);
+  $('#pay').fadeToggle(500);
  });
 
  window.fbAsyncInit = function() {

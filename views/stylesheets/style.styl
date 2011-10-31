@@ -19,7 +19,6 @@ a
  top: 10px
  right: 10px
  border-radius 10px
- z-index 1
 
 .login
  display none
@@ -56,6 +55,7 @@ a
  vertical-align middle
  padding-top 100px
  overflow scroll
+ z-index -2
 
 #dropbox
  font-size 32px
@@ -70,9 +70,34 @@ a
  padding-top 100px
  overflow auto
  overflow-x hidden
+ z-index -1
+
+#trash
+ display none
+ position fixed
+ right 0px
+ bottom 70px
+ background-color red
+ height 100px
+ width 100px
 
 #pay
- display: none
+ position fixed
+ display none
+ right 0px
+ left 0px
+ bottom 70px
+ margin auto
+ height 100px
+ text-align center
+
+#paypal
+ position fixed
+ width 100%
+ margin auto
+
+select
+ font-size 24px
 
 #status
  text-align center
