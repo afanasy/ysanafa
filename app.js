@@ -103,15 +103,23 @@ app.configure('production', function() {
 });
 
 app.get('/', function(req, res) {
- ysa.session(req, function(req) {
-  res.render('index', {
-   'title': 'Ysanafa',
-   'user': JSON.stringify(req.session.user),
-   'facebook': JSON.stringify({'appId': conf.facebook.appId}),
-   'ga': conf.ga,
-   'paypal': conf.paypal
+ io.log.info(req.headers['user-agent']);
+ if(req.headers['user-agent'].indexOf('Chrome') > 0) {
+  ysa.session(req, function(req) {
+   res.render('index', {
+    'title': 'Ysanafa',
+    'user': JSON.stringify(req.session.user),
+    'facebook': JSON.stringify({'appId': conf.facebook.appId}),
+    'ga': conf.ga,
+    'paypal': conf.paypal
+   });
   });
- });
+ }
+ else {
+  io.log.info('browser not supported');
+  res.writeHead(200, {'content-type': 'text/html'});
+  res.end('Browser not supported. Get <a href="http://www.google.com/chrome">Chrome</a>');
+ }
 });
 app.get('/facebookApp', function(req, res) {
  res.end();
@@ -120,7 +128,7 @@ app.get('/status', function(req, res) {
  res.send('connections: ' + io.sockets.n + '<br>memory: ' + util.inspect(process.memoryUsage()));
 });
 app.get('/paypal', function(req, res) {
- 
+ res.writeHead(200, {'content-type': 'text/html'});
  res.end();
 });
 app.get('/f/:id([a-f0-9]{56})', function(req, res) {
