@@ -5,7 +5,6 @@ var
  app = express.createServer(),
  sessionStore = new express.session.MemoryStore(),
  parseCookie = require('connect').utils.parseCookie,
- Session = require('connect').middleware.session.Session,
  stylus = require('stylus'),
  fs = require('fs'),
  knox = require('knox'),
@@ -154,6 +153,7 @@ app.post('/upload', function(req, res) {
    file['file.' + name] = f;
    ysa.user.findAndModify({'_id': db.oid(req.session.user._id)}, [['_id','asc']], {$set: file}, {upsert: true, new: true}, function(err, user) {});
    io.sockets.emit('file', f);
+//  knox.putFile('/data/test/a', '/data/a', function(err, res) {}); 
   }
   res.writeHead(200, {'content-type': 'text/plain'});
   res.write('received upload:\n\n');
@@ -173,7 +173,7 @@ app.post('/upload', function(req, res) {
   for(name in file) {
    var f = file[name];
    f.name = name;
-   io.log.info('upload ' + f.name);
+   io.log.info('upload: ' + f.name);
 
    req.upload[hashlib.md5(f.name)] = {
     'name': f.name,
@@ -200,28 +200,9 @@ app.post('/upload', function(req, res) {
     req.session.save();
 
     respond(req);
-/*
-     user.file = user.file || {};
-     user.file[userFile.name] = userFile;
-     req.session.user = user;
-     req.session.save();
-
-     ysa.file.findAndModify({'user._id': userFile.user._id, name: userFile.name}, [['_id','asc']], {$set: userFile}, {upsert: true, new: true}, function(err, file) {
-      ysa.transfer.insert({user: {_id: userFile.user._id}, size: userFile.data.size, type: 'in'});
-     });
-*/     
-//     console.log('emit file');
-//     io.sockets.emit('file', userFile);
-    });
-   }
-
-//  knox.putFile('/data/test/a', '/data/a', function(err, res) {}); 
-/*
-   res.writeHead(200, {'content-type': 'text/plain'});
-   res.write('received upload:\n\n');
-   res.end(util.inspect({fields: fields, file: file}));
-*/
-  });
+   });
+  }
+ });
  form.on('progress', function(bytesReceived, bytesExpected) {   
   progress = bytesReceived / bytesExpected;
   if(!req.updateProgress)
@@ -245,7 +226,7 @@ io.configure(function () {
     if (err)
      accept(err.message, false); 
     else {
-     data.session = new Session(data, session);
+     data.session = new express.session.Session(data, session);
      accept(null, true);
     }
    });
@@ -259,6 +240,7 @@ io.configure(function () {
 io.sockets.on('connection', function (socket) {
  io.sockets.n ++;
  var session = socket.handshake.session;
+ var sessionID = socket.handshake.sessionID;
  socket.on('authResponse', function(data) {
   https.get({
    'host': 'graph.facebook.com',
@@ -278,7 +260,7 @@ io.sockets.on('connection', function (socket) {
      console.log('create user');
      ysa.user.update({_id: db.oid(session.user._id)}, {$set: {'facebook': data}});
      session.user.facebook = data;
-
+     sessionStore.set(sessionID, session);
      socket.emit('user', {
       'facebook': {
        'id': data.id,
@@ -289,16 +271,24 @@ io.sockets.on('connection', function (socket) {
    }); 
   });
  });
- socket.on('disconnect', function() {
-  io.sockets.n --;
- });
  socket.on('logout', function() {
   console.log('logout');
-  ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: socket.handshake.sessionID}});
-  sessionStore.destroy(socket.handshake.sessionID, function() {
+  ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: sessionID}});
+  sessionStore.destroy(sessionID, function() {
    console.log('session destroyed');
    socket.emit('logout');
   });
+ });
+ socket.on('delete', function(file) {
+  sessionStore.get(sessionID, function (err, session) {
+   io.log.info('delete: ' + file._id);
+   delete session.user.file[file._id];
+   sessionStore.set(sessionID, session);
+   ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {file: file._id}});
+  });
+ });
+ socket.on('disconnect', function() {
+  io.sockets.n --;
  });
 });
 

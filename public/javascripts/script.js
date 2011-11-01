@@ -1,3 +1,5 @@
+$.event.props.push('dataTransfer');
+
 (function(d, s, id) {
  var js, fjs = d.getElementsByTagName(s)[0];
  if (d.getElementById(id)) {return;}
@@ -21,16 +23,23 @@ renderUser = function(user) {
 }
 
 renderFile = function(file) {
+ var _id = hex_md5(file.name);
  return $('.template .file').clone()
-  .find('a').attr('href', '/f/' + user._id + hex_md5(file.name)).end()
+  .find('a').attr('href', '/f/' + user._id + _id).end()
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
-   $('#trash').fadeIn(500);
-   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + hex_md5(file.name));
+//   $('#trash').fadeIn(500);
+   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + _id);
+   event.dataTransfer.setData('text/plain', _id);
   })
+/*
+  .bind('drop', function(event) {
+   console.log('drop!');
+  }) 
   .bind('dragend', function(event) {
-   $('#trash').fadeOut(100);
+//   $('#trash').fadeOut(100);
   })
+*/
   .appendTo('#dropbox').get()[0];
 }
 
@@ -69,7 +78,7 @@ $(function() {
  for(name in user.file)
   user.file[name].element = renderFile(user.file[name]);
 
- $.event.props.push('dataTransfer');
+ 
  $('#dropbox').bind('dragover', false);
  $('#dropbox').bind('drop', function(event) {
   for(var i = 0, f; f = event.dataTransfer.files[i]; i++) {
@@ -113,10 +122,15 @@ $(function() {
   return false;
  });
 
- $('.template .file').bind('dragstart', function(event) {
-  console.log('dragstart');
-//  console.log('set dataTransfer');
-//  event.dataTransfer.setData('DownloadURL', 'image/png:ffff.png:http://ysanafa.com:8000/f/4eabfcfd75520eb89843cb54');
+ $('#trash').bind('dragover', false);
+
+ $('#trash').bind('drop', function(event) {
+  console.log('drop!!!');
+  var _id = event.dataTransfer.getData('text/plain');
+  socket.emit('delete', {_id: _id});
+  $(user.file[_id].element).fadeOut(300, function() {
+   delete user.file[_id];
+  });
  });
 
  $('#upgrade').click(function() {
