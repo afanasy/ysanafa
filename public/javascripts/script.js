@@ -22,24 +22,23 @@ renderUser = function(user) {
   .find('.icon').attr('src',  'https://graph.facebook.com/' + user.facebook.id + '/picture').end();
 }
 
+renderTransfer = function(transfer) {
+ transfer.used = transfer.used || 0;
+ if(transfer.used > transfer.available)
+  transfer.used = transfer.available;
+ $('#transfer .used').css('width', (transfer.used / transfer.available) * parseFloat($('#transfer').css('width')));
+}
+
 renderFile = function(file) {
  var _id = hex_md5(file.name);
  return $('.template .file').clone()
   .find('a').attr('href', '/f/' + user._id + _id).end()
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
-//   $('#trash').fadeIn(500);
+   $('#trash').fadeIn(500);
    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + _id);
    event.dataTransfer.setData('text/plain', _id);
   })
-/*
-  .bind('drop', function(event) {
-   console.log('drop!');
-  }) 
-  .bind('dragend', function(event) {
-//   $('#trash').fadeOut(100);
-  })
-*/
   .appendTo('#dropbox').get()[0];
 }
 
@@ -57,6 +56,11 @@ $(function() {
   $('.progress').text(Math.round(100 * data));
  });
 
+ socket.on('transfer', function(transfer) {
+  console.log(transfer);
+  renderTransfer(transfer);
+ });
+
  socket.on('file', function(f) {
   $(user.file[hex_md5(f.name)].element)
    .find('a').attr('href', f._id);
@@ -68,6 +72,10 @@ $(function() {
   });
  });
 
+ socket.on('reconnect_failed', function() {
+  console.log('reconnect failed');
+ });
+
  if(user.facebook) {
   renderUser(user);
   $('.logout').fadeIn(500);
@@ -75,9 +83,10 @@ $(function() {
  else
   $('.login').fadeIn(500);
 
+ renderTransfer(user.transfer);
+
  for(name in user.file)
   user.file[name].element = renderFile(user.file[name]);
-
  
  $('#dropbox').bind('dragover', false);
  $('#dropbox').bind('drop', function(event) {
@@ -125,12 +134,12 @@ $(function() {
  $('#trash').bind('dragover', false);
 
  $('#trash').bind('drop', function(event) {
-  console.log('drop!!!');
   var _id = event.dataTransfer.getData('text/plain');
   socket.emit('delete', {_id: _id});
   $(user.file[_id].element).fadeOut(300, function() {
    delete user.file[_id];
   });
+  $('#trash').fadeOut(300);
  });
 
  $('#upgrade').click(function() {

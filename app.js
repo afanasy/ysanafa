@@ -27,7 +27,9 @@ ysa.session = function(req, callback) {
  }
 
  var save = function(user) {
-  console.log('saving session');
+  user.transfer = user.transfer || {};
+  if(!user.transfer.available)
+   user.transfer.available = 1028 * 1028;
   req.session.user = user;
   req.session.save(function(err) {
    req.sessionReady = true;
@@ -117,6 +119,10 @@ app.get('/facebookApp', function(req, res) {
 app.get('/status', function(req, res) {
  res.send('connections: ' + io.sockets.n + '<br>memory: ' + util.inspect(process.memoryUsage()));
 });
+app.get('/paypal', function(req, res) {
+ 
+ res.end();
+});
 app.get('/f/:id([a-f0-9]{56})', function(req, res) {
  ysa.session(req, function(req) {
   var find = {'_id': db.oid(req.params.id.substr(0, 24))};
@@ -149,10 +155,17 @@ app.post('/upload', function(req, res) {
 
   for(name in req.upload) {
    var f = req.upload[name];
-   var file = {};
-   file['file.' + name] = f;
-   ysa.user.findAndModify({'_id': db.oid(req.session.user._id)}, [['_id','asc']], {$set: file}, {upsert: true, new: true}, function(err, user) {});
+   var user = {};
+   user['file.' + name] = f;
+   ysa.user.findAndModify({'_id': db.oid(req.session.user._id)}, [['_id','asc']], {$set: user}, {upsert: true, new: true}, function(err, user) {});
    io.sockets.emit('file', f);
+
+   req.session.user.transfer.used = req.session.user.transfer.used || 0;
+   req.session.user.transfer.used += f.data.size;
+   req.session.save();
+   ysa.user.update({'_id': db.oid(req.session.user._id)}, {$inc: {transfer: {used: f.data.size}}});
+   io.sockets.emit('transfer', req.session.user.transfer);
+   
 //  knox.putFile('/data/test/a', '/data/a', function(err, res) {}); 
   }
   res.writeHead(200, {'content-type': 'text/plain'});

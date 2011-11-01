@@ -73,13 +73,15 @@ a
  z-index -1
 
 #trash
- display block
+ display none
  position fixed
  right 0px
  bottom 70px
  background-color red
  height 200px
  width 200px
+ background url(/images/trash.png) center center no-repeat
+ border 1px solid
 
 #pay
  position fixed
@@ -110,3 +112,26 @@ select
  padding-top 20px 
  background-image -webkit-linear-gradient(top, rgb(113, 125, 140) 0%, rgb(113, 125, 140) 100%)
  -webkit-box-shadow inset 0px 5px 10px 0px #000
+
+#transfer
+ position fixed
+ right 100px
+ bottom 10px
+ left 100px 
+ width 300px
+ height 30px
+ margin auto
+ background-color white
+ border-radius 10px
+ padding 5px
+
+#transfer .used
+ background-color gray
+ width 0px
+ height 30px
+ border-radius 10px
+
+#upgrade
+ position fixed
+ padding 0px
+ right 100px
