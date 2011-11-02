@@ -224,13 +224,20 @@ app.post('/upload', function(req, res) {
    });
   }
  });
+ form.on('fileBegin', function(name, file) {
+  console.log('fileBegin');
+  form.name = name;
+ });
  form.on('progress', function(bytesReceived, bytesExpected) {   
-  progress = bytesReceived / bytesExpected;
+  var done = bytesReceived / bytesExpected;
   if(!req.updateProgress)
    req.updateProgress = new Date().getTime();
   now = Date.now();
-  if((now > req.updateProgress) || (progress == 1)) {
-   io.sockets.emit('progress', progress);
+  if((now > req.updateProgress) || (done == 1)) {
+   io.sockets.emit('progress', {
+    'name': form.name,
+    'done': done
+   });
    req.updateProgress = now + 500;
   }
  });

@@ -11,8 +11,33 @@ a
  width: 128px
  float: left
 
+.file .icon
+ height 128px
+ width 128px
+ background url('/images/file.png') center center no-repeat
+ text-align center
+ padding 0px
+ border 1px solid transparent
+ border-radius 10px
+
 .file .name
  text-align: center
+
+.file .progress
+ display none
+ background-color white
+ width 70px
+ height 18px
+ margin 80px 24px 20px 24px
+ border-radius 10px
+ border 1px solid
+ padding 5px
+
+.file .done
+ background-color gray
+ width 0px
+ height 18px
+ border-radius 10px
 
 #user
  position: absolute
@@ -81,7 +106,6 @@ a
  height 200px
  width 200px
  background url(/images/trash.png) center center no-repeat
- border 1px solid
 
 #pay
  position fixed

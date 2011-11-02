@@ -39,6 +39,9 @@ renderFile = function(file) {
    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + _id);
    event.dataTransfer.setData('text/plain', _id);
   })
+  .bind('dragend', function(event) {
+   $('#trash').fadeOut(300);
+  })
   .appendTo('#dropbox').get()[0];
 }
 
@@ -52,8 +55,13 @@ $(function() {
   });
  });
 
- socket.on('progress', function(data) {
-  $('.progress').text(Math.round(100 * data));
+ socket.on('progress', function(progress) {
+  console.log(progress);
+  if(progress.name) {
+   $('.progress .done').css('width', progress.done * parseFloat($('.progress').css('width')));
+   if(progress.done == 1)
+    $('.progress').fadeOut(300);
+  }
  });
 
  socket.on('transfer', function(transfer) {
@@ -108,9 +116,13 @@ $(function() {
    formData.append(name, f);
 
    user.file[_id] = {
-    'name': name
+    'name': name,
+    'data': {
+     'size': f.size
+    }
    }
    user.file[_id].element = renderFile(user.file[_id]);
+   $(user.file[_id].element).find('.progress').fadeIn(0);
 
    console.log(user.file[_id]);
 
