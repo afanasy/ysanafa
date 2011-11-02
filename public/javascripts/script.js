@@ -56,7 +56,6 @@ $(function() {
  });
 
  socket.on('progress', function(progress) {
-  console.log(progress);
   if(progress.name) {
    $('.progress .done').css('width', progress.done * parseFloat($('.progress').css('width')));
    if(progress.done == 1)
@@ -65,7 +64,6 @@ $(function() {
  });
 
  socket.on('transfer', function(transfer) {
-  console.log(transfer);
   renderTransfer(transfer);
  });
 
@@ -124,8 +122,6 @@ $(function() {
    user.file[_id].element = renderFile(user.file[_id]);
    $(user.file[_id].element).find('.progress').fadeIn(0);
 
-   console.log(user.file[_id]);
-
    $.ajax({
     'type': 'POST',
     'url': '/upload', 
@@ -177,7 +173,6 @@ $(function() {
  });
 
  $('.logout a').click(function() {
-  console.log('logout');
   socket.emit('logout');
  });
 });

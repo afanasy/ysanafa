@@ -19,7 +19,6 @@ var
 
 ysa.session = function(req, callback) {
  if(req.session.user) {
-  console.log('session here already');
   console.log(req.session);
   req.sessionReady = true;
   callback(req);
@@ -64,9 +63,6 @@ db.oid = function(id) {
 
 db.open(function(error, client) {
  ysa.user = new mongodb.Collection(client, 'user');
- ysa.file = new mongodb.Collection(client, 'file');
- ysa.facebookUser = new mongodb.Collection(client, 'facebookUser');
- ysa.transfer = new mongodb.Collection(client, 'transfer');
 });
 
 app.configure(function() {
@@ -225,7 +221,6 @@ app.post('/upload', function(req, res) {
   }
  });
  form.on('fileBegin', function(name, file) {
-  console.log('fileBegin');
   form.name = name;
  });
  form.on('progress', function(bytesReceived, bytesExpected) {   
@@ -270,33 +265,59 @@ io.sockets.on('connection', function (socket) {
  var session = socket.handshake.session;
  var sessionID = socket.handshake.sessionID;
  socket.on('authResponse', function(data) {
-  https.get({
-   'host': 'graph.facebook.com',
-   'path': '/me?access_token=' + data['accessToken']
-  },
-  function(res) {
-   res.data = '';
-   res.on('data', function(data) {
-    res.data += data;
+  sessionStore.get(sessionID, function (err, session) {
+   https.get({
+    'host': 'graph.facebook.com',
+    'path': '/me?access_token=' + data['accessToken']
+   },
+   function(res) {
+    res.data = '';
+    res.on('data', function(data) {
+     res.data += data;
+    });
+    res.on('end', function() {
+     console.log(res.data);
+     data = JSON.parse(res.data);
+     console.log(data.id);
+     if(data.id) {
+      ysa.user.findOne({'facebook.id': data.id}, function(err, user) {
+       console.log('found facebook user');
+       if(user) {
+        console.log('current session user');
+        console.log(session.user);
+        if(session.user.file) {
+         user.file = user.file || {};
+         for(var _id in session.user.file) {
+          user.file[_id] = session.user.file[_id];
+          var file = {};
+          file['file.' + _id] = user.file[_id];
+          console.log('copy files');
+          ysa.user.update({_id: db.oid(user._id)}, {$set: {file: file}});
+         }
+        }
+        if(session.user.transfer.done) {
+         user.transfer = user.transfer || {};
+         user.transfer.done += session.user.transfer.done;
+        }
+        user.sid = user.sid || [];
+        user.sid.push(session.user.sid[0]);
+        
+        session.user = user;
+        
+       }
+      });
+      ysa.user.update({_id: db.oid(session.user._id)}, {$set: {'facebook': data}});
+      session.user.facebook = data;
+      sessionStore.set(sessionID, session);
+      socket.emit('user', {
+       'facebook': {
+        'id': data.id,
+        'first_name': data.first_name
+       }
+      });
+     }
+    }); 
    });
-   res.on('end', function() {
-    console.log('end');
-    console.log(res.data);
-    data = JSON.parse(res.data);
-    console.log(data.id);
-    if(data.id) {
-     console.log('create user');
-     ysa.user.update({_id: db.oid(session.user._id)}, {$set: {'facebook': data}});
-     session.user.facebook = data;
-     sessionStore.set(sessionID, session);
-     socket.emit('user', {
-      'facebook': {
-       'id': data.id,
-       'first_name': data.first_name
-      }
-     });
-    }
-   }); 
   });
  });
  socket.on('logout', function() {
