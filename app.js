@@ -15,7 +15,8 @@ var
  formidable = require('formidable'),
  util = require('util'),
  exec = require('child_process').exec,
- hashlib = require('hashlib'); 
+ hashlib = require('hashlib'),
+ qs = require('qs'); 
 
 ysa.session = function(req, callback) {
  if(req.session.user) {
@@ -103,7 +104,6 @@ app.get('/', function(req, res) {
  io.log.info(req.headers['user-agent']);
  if(req.headers['user-agent'].indexOf('Chrome') > 0) {
   ysa.session(req, function(req) {
-console.log(req.session.user.file);
    res.render('index', {
     'title': 'Ysanafa',
     'user': JSON.stringify(req.session.user),
@@ -160,6 +160,11 @@ app.post('/paypal', function(req, res) {
     paypalResponse.data += data;
    });
    paypalResponse.on('end', function() {
+    if(paypalResponse.data == 'VERIFIED') {
+     var data = qs.parse(req.data);
+     var transfer = 1024 * 1024 * 1024 * parseInt(data.option_selection1.substr, 10);     
+     ysa.user.update({_id: db.oid(data.custom)}, {$inc: {paid: data.mc_gross, transfer: {available: transfer}}});
+    }
     log.write(paypalResponse.data);
     log.destroySoon();
     res.writeHead(200, {'content-type': 'text/html'});
