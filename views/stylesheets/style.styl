@@ -1,16 +1,26 @@
+terraTerra = rgb(232, 221, 203)
+terra = rgb(205, 179, 128)
+acqua = rgb(3, 101, 100) 
+acquaProfonda = rgb(3, 54, 73)
+abisso = rgb(3, 22, 52)
+
 body
  font 14px "Lucida Grande", Helvetica, Arial, sans-serif
+ background terraTerra
 
 a
- color #00B7FF
+ color rgb(3, 101, 100)
  text-decoration none
 
 .template
  display none
 
 .file
+ display none
  width 128px
  float left
+ position absolute
+ background transparent
 
 .file .icon
  height 128px
@@ -22,6 +32,7 @@ a
  border-radius 10px
 
 .file .name
+ color black
  text-align: center
 
 .file .progress
@@ -46,30 +57,37 @@ a
  right: 10px
  border-radius 10px
 
-.login
- display none
- cursor pointer
- border-radius 10px
-
-.logout
- display none
-
-.logout .icon
+#user .icon
  width 50px
  height 50px
  border-radius 10px
  vertical-align middle
 
-.logout .name
+#user .name
  font-size: 24px
  margin-left: 10px
  vertical-align: middle
  padding 0px 10px 0px 10px
 
+.login
+ display none
+ cursor pointer
+ border-radius 10px
+
+.info
+ display none
+
+.info .logout
+ display none
+ position fixed
+ top 45px
+ right 20px
+
 .file .name
  font-size: 18px
 
 #headline
+ display none
  font-size 32px
  position fixed
  top 70px
@@ -77,7 +95,6 @@ a
  bottom 70px
  left 0px
  text-align center
- display table-cell
  vertical-align middle
  padding-top 100px
  overflow scroll
@@ -135,7 +152,7 @@ select
  bottom 0px
  left -10px
  padding-top 20px 
- background-image -webkit-linear-gradient(top, rgb(113, 125, 140) 0%, rgb(113, 125, 140) 100%)
+ background-image -webkit-linear-gradient(top, acquaProfonda 0%, abisso 100%)
  -webkit-box-shadow inset 0px 5px 10px 0px #000
 
 #transfer
@@ -146,12 +163,12 @@ select
  width 300px
  height 30px
  margin auto
- background-color white
+ background-color rgb(205, 179, 128)
  border-radius 10px
  padding 5px
 
-#transfer .used
- background-color gray
+#transfer .done
+ background-color acqua
  width 0px
  height 30px
  border-radius 10px
@@ -159,4 +176,10 @@ select
 #upgrade
  position fixed
  padding 0px
- right 100px
+ right 20px
+ bottom 5px
+ height 30px
+ font-size 24px
+ background-color rgb(3, 101, 100) - 100
+ border-radius 10px
+ padding 10px

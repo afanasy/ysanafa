@@ -23,26 +23,45 @@ renderUser = function(user) {
 }
 
 renderTransfer = function(transfer) {
- transfer.used = transfer.used || 0;
- if(transfer.used > transfer.available)
-  transfer.used = transfer.available;
- $('#transfer .used').css('width', (transfer.used / transfer.available) * parseFloat($('#transfer').css('width')));
+ transfer.done = transfer.done || 0;
+ if(transfer.done > transfer.available)
+  transfer.done = transfer.available;
+ $('#transfer .done').css('width', (transfer.done / transfer.available) * parseFloat($('#transfer').css('width')));
 }
 
 renderFile = function(file) {
  var _id = hex_md5(file.name);
  return $('.template .file').clone()
+  .css('left', file.x)
+  .css('top', file.y)
   .find('a').attr('href', '/f/' + user._id + _id).end()
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
-   $('#trash').fadeIn(500);
+   $('#trash').fadeIn(300);
    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + _id);
    event.dataTransfer.setData('text/plain', _id);
+   this.x = (event.clientX - parseFloat($(this).css('left')));
+   this.y = (event.clientY - parseFloat($(this).css('top')));
   })
   .bind('dragend', function(event) {
+   $(this).css('top', event.clientY - this.y);
+   $(this).css('left', event.clientX - this.x);
    $('#trash').fadeOut(300);
   })
-  .appendTo('#dropbox').get()[0];
+  .appendTo('#dropbox').fadeIn(300).get()[0];
+}
+
+toggleHeadline = function() {
+ var showHeadline = true;
+ if(user.file)
+  for(_id in user.file) {
+   showHeadline = false;
+   break;
+  }
+ if(showHeadline)
+  $('#headline').fadeIn(500);
+ else
+  $('#headline').fadeOut(500);
 }
 
 $(function() {
@@ -78,21 +97,31 @@ $(function() {
   });
  });
 
+ socket.on('reload', function() {
+  window.location.reload();
+ });
+
  socket.on('reconnect_failed', function() {
   console.log('reconnect failed');
  });
 
  if(user.facebook) {
   renderUser(user);
-  $('.logout').fadeIn(500);
+  $('.info').fadeIn(500);
  }
  else
   $('.login').fadeIn(500);
 
  renderTransfer(user.transfer);
 
- for(name in user.file)
-  user.file[name].element = renderFile(user.file[name]);
+ var x = 0;
+ var y = 0;
+ for(name in user.file) {
+  user.file[name].element = renderFile(user.file[name], x, y);
+  y += 200;
+ }
+ 
+ toggleHeadline();
  
  $('#dropbox').bind('dragover', false);
  $('#dropbox').bind('drop', function(event) {
@@ -110,17 +139,22 @@ $(function() {
    if(user.file[_id])
     name += ' (2)';
 
-   var formData = new FormData();
-   formData.append(name, f);
-
    user.file[_id] = {
     'name': name,
+    'x': (event.clientX - 64),
+    'y': (event.clientY - 64),
     'data': {
      'size': f.size
     }
    }
+
+   var formData = new FormData();
+   formData.append(_id, JSON.stringify(user.file[_id]));
+   
    user.file[_id].element = renderFile(user.file[_id]);
    $(user.file[_id].element).find('.progress').fadeIn(0);
+
+   formData.append(_id, f);
 
    $.ajax({
     'type': 'POST',
@@ -132,6 +166,8 @@ $(function() {
      console.log(data);
     }
    });
+
+   $('#headline').fadeOut(300);
 
    _gaq.push(['_trackEvent', 'Upload', 'start', f.name]);
 
@@ -146,8 +182,9 @@ $(function() {
   socket.emit('delete', {_id: _id});
   $(user.file[_id].element).fadeOut(300, function() {
    delete user.file[_id];
+   $('#trash').fadeOut(300);
+   toggleHeadline();
   });
-  $('#trash').fadeOut(300);
  });
 
  $('#upgrade').click(function() {
@@ -172,7 +209,17 @@ $(function() {
   FB.login();
  });
 
- $('.logout a').click(function() {
+ $('#user .info').bind('mouseenter', function() {
+  $('.logout').fadeIn(100);
+  return false;
+ });
+
+ $('#user .info').bind('mouseleave', function() {
+  $('.logout').fadeOut(100);
+  return false;
+ });
+
+ $('.logout').click(function() {
   socket.emit('logout');
  });
 });

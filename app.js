@@ -19,7 +19,6 @@ var
 
 ysa.session = function(req, callback) {
  if(req.session.user) {
-  console.log(req.session);
   req.sessionReady = true;
   callback(req);
   return;
@@ -38,12 +37,14 @@ ysa.session = function(req, callback) {
 
  ysa.user.findAndModify({'sid': req.cookies['sid']}, [['_id','asc']], {$set: {'sid.$': req.sessionID}}, {'new': true}, function(err, user) {
   if(!user) {
-   user = {'sid': [req.sessionID]};
+   console.log('user not found');
+   user = {'sid': [req.sessionID], 'created': (new Date).getTime()};
    ysa.user.insert(user, {safe: true}, function(err, user) {
     save(user[0]);
    });
   }
   else {
+   console.log('user found');
    if(user.facebook)
     user.facebook = {
      'id': user.facebook.id,
@@ -153,21 +154,21 @@ app.post('/upload', function(req, res) {
  var respond = function(req) {
   if(!req.sessionReady || !req.upload)
    return;
-  for(name in req.upload)
-   if(!req.upload[name].data.path)
+  for(_id in req.upload)
+   if(!req.upload[_id].data.path)
     return;
 
-  for(name in req.upload) {
-   var f = req.upload[name];
+  for(_id in req.upload) {
+   var f = req.upload[_id];
    var user = {};
-   user['file.' + name] = f;
+   user['file.' + _id] = f;
    ysa.user.findAndModify({'_id': db.oid(req.session.user._id)}, [['_id','asc']], {$set: user}, {upsert: true, new: true}, function(err, user) {});
    io.sockets.emit('file', f);
 
-   req.session.user.transfer.used = req.session.user.transfer.used || 0;
-   req.session.user.transfer.used += f.data.size;
+   req.session.user.transfer.done = req.session.user.transfer.done || 0;
+   req.session.user.transfer.done += f.data.size;
    req.session.save();
-   ysa.user.update({'_id': db.oid(req.session.user._id)}, {$inc: {transfer: {used: f.data.size}}});
+   ysa.user.update({'_id': db.oid(req.session.user._id)}, {$inc: {transfer: {done: f.data.size}}});
    io.sockets.emit('transfer', req.session.user.transfer);
    
 //  knox.putFile('/data/test/a', '/data/a', function(err, res) {}); 
@@ -180,21 +181,24 @@ app.post('/upload', function(req, res) {
  ysa.session(req, respond);
 
  var form = new formidable.IncomingForm();
- form.parse(req, function(err, fields, file) {
+ form.parse(req, function(err, field, file) {
   if(err) {
    io.log.info('upload failed: ' + err.message);
    return;
   }
   var user = req.session.user;
   req.upload = {};
-  for(name in file) {
-   var f = file[name];
-   f.name = name;
-   io.log.info('upload: ' + f.name);
+  for(_id in file) {
+   var f = file[_id];
 
-   req.upload[hashlib.md5(f.name)] = {
-    'name': f.name,
+   io.log.info('upload: ' + field[_id].name);
+
+   field[_id] = JSON.parse(field[_id]);
+   req.upload[_id] = {
+    'name': field[_id].name,
     'type': f.type,
+    'x': field[_id].x,
+    'y': field[_id].y,
     'data': {
      'size': f.size
     }
@@ -208,10 +212,10 @@ app.post('/upload', function(req, res) {
       fs.rename(f.path, path);
     });
 
-    req.upload[hashlib.md5(f.name)].data.path = md5sum;
+    req.upload[_id].data.path = md5sum;
 
     user.file = user.file || {};
-    user.file[hashlib.md5(f.name)] = f;
+    user.file[_id] = f;
 
     req.session.user = user;
     req.session.save();
@@ -220,6 +224,9 @@ app.post('/upload', function(req, res) {
    });
   }
  });
+// form.on('field', function(name, value) {
+//  form.field[name]
+// });
  form.on('fileBegin', function(name, file) {
   form.name = name;
  });
@@ -264,6 +271,7 @@ io.sockets.on('connection', function (socket) {
  io.sockets.n ++;
  var session = socket.handshake.session;
  var sessionID = socket.handshake.sessionID;
+ 
  socket.on('authResponse', function(data) {
   sessionStore.get(sessionID, function (err, session) {
    https.get({
@@ -281,42 +289,35 @@ io.sockets.on('connection', function (socket) {
      console.log(data.id);
      if(data.id) {
       ysa.user.findOne({'facebook.id': data.id}, function(err, user) {
-       console.log('found facebook user');
        if(user) {
-        console.log('current session user');
-        console.log(session.user);
-        if(session.user.file) {
-         user.file = user.file || {};
-         for(var _id in session.user.file) {
-          user.file[_id] = session.user.file[_id];
-          var file = {};
-          file['file.' + _id] = user.file[_id];
-          console.log('copy files');
-          ysa.user.update({_id: db.oid(user._id)}, {$set: {file: file}});
-         }
-        }
-        if(session.user.transfer.done) {
-         user.transfer = user.transfer || {};
-         user.transfer.done += session.user.transfer.done;
-        }
-        user.sid = user.sid || [];
-        user.sid.push(session.user.sid[0]);
-        
-        session.user = user;
-        
+        console.log('found facebook user');
+        console.log('will push');
+        console.log(sessionID);
+        ysa.user.update({_id: db.oid(user._id)}, {$set: {facebook: data}, $push: {sid: sessionID}}, {safe: true}, function(err) {
+         ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: sessionID}}, {safe: true} ,function(err) {
+          sessionStore.destroy(sessionID, function() {
+           console.log('reload');
+           socket.emit('reload');
+          });
+         });
+        });
        }
-      });
-      ysa.user.update({_id: db.oid(session.user._id)}, {$set: {'facebook': data}});
-      session.user.facebook = data;
-      sessionStore.set(sessionID, session);
-      socket.emit('user', {
-       'facebook': {
-        'id': data.id,
-        'first_name': data.first_name
+       else {
+        console.log('new facebook user');
+        ysa.user.update({_id: db.oid(session.user._id)}, {$set: {facebook: data}}, {safe: true}, function(err) {
+         session.user.facebook = data;
+         sessionStore.set(sessionID, session);
+         socket.emit('user', {
+          'facebook': {
+           'id': data.id,
+           'first_name': data.first_name
+          }
+         });
+        });
        }
-      });
+      }); 
      }
-    }); 
+    });
    });
   });
  });
