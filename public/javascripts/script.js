@@ -121,6 +121,8 @@ console.log(progress);
  else
   $('.login').fadeIn(500);
 
+ $('#paypal input[name="custom"]').val(user._id);
+
  renderTransfer(user.transfer);
 
  var x = 0;

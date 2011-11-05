@@ -152,15 +152,15 @@ app.post('/paypal', function(req, res) {
  req.on('end', function() {
   https.get({
    'host': 'www.paypal.com',
-   'path': '/cgi-bin/webscr?cmd=_notify-validate&' + data
+   'path': '/cgi-bin/webscr?cmd=_notify-validate&' + req.data
   },
-  function(res) {
-   res.data = '';
-   res.on('data', function(data) {
-    res.data += data;
+  function(paypalResponse) {
+   paypalResponse.data = '';
+   paypalResponse.on('data', function(data) {
+    paypalResponse.data += data;
    });
-   res.on('end', function() {
-    log.write(res.data);
+   paypalResponse.on('end', function() {
+    log.write(paypalResponse.data);
     log.destroySoon();
     res.writeHead(200, {'content-type': 'text/html'});
     res.end();
