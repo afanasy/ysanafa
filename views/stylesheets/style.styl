@@ -5,7 +5,7 @@ acquaProfonda = rgb(3, 54, 73)
 abisso = rgb(3, 22, 52)
 
 body
- font 14px "Lucida Grande", Helvetica, Arial, sans-serif
+ font 24px "Lucida Grande", Helvetica, Arial, sans-serif
  background terraTerra
 
 a
@@ -62,6 +62,7 @@ a
  height 50px
  border-radius 10px
  vertical-align middle
+ -webkit-box-shadow 0px 0px 5px 0px #000
 
 #user .name
  font-size: 24px
@@ -127,21 +128,55 @@ a
 
 #pay
  position fixed
- display none
- right 0px
+ display block
  left 0px
- bottom 70px
- margin auto
- height 100px
- text-align center
+ right 0px
+ bottom 100px
+ height 300px
 
 #paypal
- position fixed
- width 100%
- margin auto
+ text-align center
+ width 442px
+ margin-left auto
+ margin-right auto
 
-select
- font-size 24px
+.buy
+ cursor pointer
+ width 200px
+ height 40px
+ border-radius 10px
+ margin 160px auto 0px auto
+ padding-top 10px
+ background-image -webkit-linear-gradient(top, terra 0%, terraTerra 100%)
+ -webkit-box-shadow 0px 0px 5px 0px #000
+
+.select
+ text-align center
+ border 1px solid transparent
+
+.option
+ color acqua
+ cursor pointer
+ float left
+ margin 10px
+ background-color acqua
+ border-radius 10px
+ width 120px
+ height 120px
+ background-image -webkit-linear-gradient(top, acquaProfonda 0%, abisso 100%)
+ -webkit-box-shadow 0px 0px 5px 0px #000
+
+.selected
+ margin-top 0px
+ width 140px
+ height 140px 
+
+.option .value
+ display none
+
+.option .head
+ font-size 32px
+ margin-top 25px
 
 #status
  text-align center
@@ -163,15 +198,16 @@ select
  width 300px
  height 30px
  margin auto
- background-color rgb(205, 179, 128)
  border-radius 10px
  padding 5px
+ background-image -webkit-linear-gradient(top, abisso 0%, acquaProfonda 120%)
+ -webkit-box-shadow inset 0px 0px 10px 0px #000
 
 #transfer .done
- background-color acqua
  width 0px
  height 30px
  border-radius 10px
+ background-image -webkit-linear-gradient(top, acqua 0%, acquaProfonda 100%)
 
 #upgrade
  position fixed

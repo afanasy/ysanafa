@@ -40,12 +40,20 @@ renderFile = function(file) {
    $('#trash').fadeIn(300);
    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + _id);
    event.dataTransfer.setData('text/plain', _id);
+console.log('dragstart');
+console.log(file);
    this.x = (event.clientX - parseFloat($(this).css('left')));
    this.y = (event.clientY - parseFloat($(this).css('top')));
   })
   .bind('dragend', function(event) {
-   $(this).css('top', event.clientY - this.y);
-   $(this).css('left', event.clientX - this.x);
+console.log('dragend');
+console.log(this.x);
+console.log(this.y);
+   user.file[_id].x = x = (event.clientX - this.x);
+   user.file[_id].y = y = (event.clientY - this.y);
+   socket.emit('file', {_id: _id, x: x, y: y});
+   $(this).css('left', x);
+   $(this).css('top', y);
    $('#trash').fadeOut(300);
   })
   .appendTo('#dropbox').fadeIn(300).get()[0];
@@ -75,7 +83,8 @@ $(function() {
  });
 
  socket.on('progress', function(progress) {
-  if(progress.name) {
+console.log(progress);
+  if(progress._id) {
    $('.progress .done').css('width', progress.done * parseFloat($('.progress').css('width')));
    if(progress.done == 1)
     $('.progress').fadeOut(300);
@@ -132,12 +141,19 @@ $(function() {
    }})(f);
    fileReader.readAsBinaryString(f);
 */
-  
-   var _id = hex_md5(f.name);
-   var name = f.name;
    user.file = user.file || {};
-   if(user.file[_id])
-    name += ' (2)';
+  
+   var name = f.name;
+   var _id = hex_md5(name);
+
+   while(true) {
+    if(user.file[_id]) {
+     name += ' copy';
+    _id = hex_md5(name);
+    }
+    else
+     break;
+   }
 
    user.file[_id] = {
     'name': name,
@@ -217,6 +233,16 @@ $(function() {
  $('#user .info').bind('mouseleave', function() {
   $('.logout').fadeOut(100);
   return false;
+ });
+
+ $('#paypal .option').click(function() {
+  $('#paypal .option').removeClass('selected');
+  $('#paypal form input[name="os0"]').val($(this).find('.value').text());
+  $(this).addClass('selected');
+ });
+
+ $('#paypal .buy').click(function() {
+  $('#paypal form').submit();
  });
 
  $('.logout').click(function() {

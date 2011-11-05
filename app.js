@@ -103,6 +103,7 @@ app.get('/', function(req, res) {
  io.log.info(req.headers['user-agent']);
  if(req.headers['user-agent'].indexOf('Chrome') > 0) {
   ysa.session(req, function(req) {
+console.log(req.session.user.file);
    res.render('index', {
     'title': 'Ysanafa',
     'user': JSON.stringify(req.session.user),
@@ -191,14 +192,14 @@ app.post('/upload', function(req, res) {
   for(_id in file) {
    var f = file[_id];
 
-   io.log.info('upload: ' + field[_id].name);
-
    field[_id] = JSON.parse(field[_id]);
+   io.log.info('upload: ' + field[_id].name);
    req.upload[_id] = {
     'name': field[_id].name,
     'type': f.type,
     'x': field[_id].x,
     'y': field[_id].y,
+    'created': (new Date).getTime(),
     'data': {
      'size': f.size
     }
@@ -215,7 +216,7 @@ app.post('/upload', function(req, res) {
     req.upload[_id].data.path = md5sum;
 
     user.file = user.file || {};
-    user.file[_id] = f;
+    user.file[_id] = req.upload[_id];
 
     req.session.user = user;
     req.session.save();
@@ -224,11 +225,15 @@ app.post('/upload', function(req, res) {
    });
   }
  });
-// form.on('field', function(name, value) {
-//  form.field[name]
-// });
  form.on('fileBegin', function(name, file) {
-  form.name = name;
+  form._id = name;
+  var done = form.bytesReceived / form.bytesExpected;
+  if(done == 1) {
+   io.sockets.emit('progress', {
+    '_id': form._id,
+    'done': done
+   });
+  }
  });
  form.on('progress', function(bytesReceived, bytesExpected) {   
   var done = bytesReceived / bytesExpected;
@@ -237,7 +242,7 @@ app.post('/upload', function(req, res) {
   now = Date.now();
   if((now > req.updateProgress) || (done == 1)) {
    io.sockets.emit('progress', {
-    'name': form.name,
+    '_id': form._id,
     'done': done
    });
    req.updateProgress = now + 500;
@@ -335,6 +340,15 @@ io.sockets.on('connection', function (socket) {
    delete session.user.file[file._id];
    sessionStore.set(sessionID, session);
    ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {file: file._id}});
+  });
+ });
+ socket.on('file', function(file) {
+  sessionStore.get(sessionID, function (err, session) {
+   var u = {};
+   u['file.' + file._id + '.x'] = session.user.file[file._id].x = file.x;
+   u['file.' + file._id + '.y'] = session.user.file[file._id].y = file.y;
+   ysa.user.update({_id: db.oid(session.user._id)}, {$set: u});
+   sessionStore.set(sessionID, session);
   });
  });
  socket.on('disconnect', function() {
