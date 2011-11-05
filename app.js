@@ -144,13 +144,28 @@ app.post('/paypal', function(req, res) {
  log.write(req.method);
  log.write(req.url);
  log.write(util.inspect(req.headers));
+ req.data = '';
  req.on('data', function(data) {
+  req.data += data;
   log.write(data);
  });
  req.on('end', function() {
-  log.destroySoon();
-  res.writeHead(200, {'content-type': 'text/html'});
-  res.end('got post');
+  https.get({
+   'host': 'www.paypal.com',
+   'path': '/cgi-bin/webscr?cmd=_notify-validate&' + data
+  },
+  function(res) {
+   res.data = '';
+   res.on('data', function(data) {
+    res.data += data;
+   });
+   res.on('end', function() {
+    log.write(res.data);
+    log.destroySoon();
+    res.writeHead(200, {'content-type': 'text/html'});
+    res.end();
+   });
+  });
  });
 });
 app.get('/f/:id([a-f0-9]{56})', function(req, res) {
