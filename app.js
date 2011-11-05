@@ -75,8 +75,8 @@ app.configure(function() {
   secret: conf.secret,
   store: sessionStore
  }));
- app.use(express.bodyParser());
- app.use(express.methodOverride());
+// app.use(express.bodyParser());
+// app.use(express.methodOverride());
  app.use(app.router);
  app.use(stylus.middleware({
   src: __dirname + '/views',
@@ -126,8 +126,32 @@ app.get('/status', function(req, res) {
  res.send('connections: ' + io.sockets.n + '<br>memory: ' + util.inspect(process.memoryUsage()));
 });
 app.get('/paypal', function(req, res) {
- res.writeHead(200, {'content-type': 'text/html'});
- res.end();
+ var log = fs.createWriteStream('paypal', {flags: 'a'});
+ log.write(req.method);
+ log.write(req.url);
+ log.write(util.inspect(req.headers));
+ req.on('data', function(data) {
+  log.write(data);
+ });
+ req.on('end', function() {
+  log.destroySoon();
+  res.writeHead(200, {'content-type': 'text/html'});
+  res.end('<form action="paypal" method="post"><input type="submit"><input name="nn" value="vv"></form>');
+ });
+});
+app.post('/paypal', function(req, res) {
+ var log = fs.createWriteStream('paypal', {flags: 'a'});
+ log.write(req.method);
+ log.write(req.url);
+ log.write(util.inspect(req.headers));
+ req.on('data', function(data) {
+  log.write(data);
+ });
+ req.on('end', function() {
+  log.destroySoon();
+  res.writeHead(200, {'content-type': 'text/html'});
+  res.end('got post');
+ });
 });
 app.get('/f/:id([a-f0-9]{56})', function(req, res) {
  ysa.session(req, function(req) {
