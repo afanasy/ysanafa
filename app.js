@@ -16,7 +16,11 @@ var
  util = require('util'),
  exec = require('child_process').exec,
  hashlib = require('hashlib'),
- qs = require('qs'); 
+ qs = require('qs');
+
+ysa.log = function(message) {
+ console.log((new Date).toString().substr(4, 20) + ' ' + message);
+}
 
 ysa.session = function(req, callback) {
  if(req.session.user) {
@@ -38,14 +42,12 @@ ysa.session = function(req, callback) {
 
  ysa.user.findAndModify({'sid': req.cookies['sid']}, [['_id','asc']], {$set: {'sid.$': req.sessionID}}, {'new': true}, function(err, user) {
   if(!user) {
-   console.log('user not found');
    user = {'sid': [req.sessionID], 'created': (new Date).getTime()};
    ysa.user.insert(user, {safe: true}, function(err, user) {
     save(user[0]);
    });
   }
   else {
-   console.log('user found');
    if(user.facebook)
     user.facebook = {
      'id': user.facebook.id,
@@ -101,7 +103,7 @@ app.configure('production', function() {
 });
 
 app.get('/', function(req, res) {
- io.log.info(req.headers['user-agent']);
+ ysa.log('/ ' + req.connection.remoteAddress);
  if(req.headers['user-agent'].indexOf('Chrome') > 0) {
   ysa.session(req, function(req) {
    res.render('index', {
@@ -114,7 +116,7 @@ app.get('/', function(req, res) {
   });
  }
  else {
-  io.log.info('browser not supported');
+  ysa.log('browser not supported: ' + req.headers['user-agent']);
   res.writeHead(200, {'content-type': 'text/html'});
   res.end('Browser not supported. Get <a href="http://www.google.com/chrome">Chrome</a>');
  }
@@ -211,7 +213,7 @@ app.get('/f/:id([a-f0-9]{56})', function(req, res) {
  });
 });
 app.post('/upload', function(req, res) {
- io.log.info('upload started');
+ ysa.log('upload started');
  var respond = function(req) {
   if(!req.sessionReady || !req.upload)
    return;
@@ -244,7 +246,7 @@ app.post('/upload', function(req, res) {
  var form = new formidable.IncomingForm();
  form.parse(req, function(err, field, file) {
   if(err) {
-   io.log.info('upload failed: ' + err.message);
+   ysa.log('upload failed: ' + err.message);
    return;
   }
   var user = req.session.user;
@@ -253,7 +255,7 @@ app.post('/upload', function(req, res) {
    var f = file[_id];
 
    field[_id] = JSON.parse(field[_id]);
-   io.log.info('upload: ' + field[_id].name);
+   ysa.log('upload: ' + field[_id].name);
    req.upload[_id] = {
     'name': field[_id].name,
     'type': f.type,
@@ -396,7 +398,7 @@ io.sockets.on('connection', function (socket) {
  });
  socket.on('delete', function(file) {
   sessionStore.get(sessionID, function (err, session) {
-   io.log.info('delete: ' + file._id);
+   ysa.log('delete: ' + file._id);
    delete session.user.file[file._id];
    sessionStore.set(sessionID, session);
    ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {file: file._id}});
@@ -417,4 +419,4 @@ io.sockets.on('connection', function (socket) {
 });
 
 app.listen(8000);
-io.log.info('ysanafa listening on port ' + app.address().port + ' in ' + app.settings.env + ' mode');
+ysa.log('ysanafa listening on port ' + app.address().port + ' in ' + app.settings.env + ' mode');
