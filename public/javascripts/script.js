@@ -42,15 +42,10 @@ renderFile = function(file) {
    $('#trash').fadeIn(300);
    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + _id);
    event.dataTransfer.setData('text/plain', _id);
-console.log('dragstart');
-console.log(file);
    this.x = (event.clientX - parseFloat($(this).css('left')));
    this.y = (event.clientY - parseFloat($(this).css('top')));
   })
   .bind('dragend', function(event) {
-console.log('dragend');
-console.log(this.x);
-console.log(this.y);
    user.file[_id].x = x = (event.clientX - this.x);
    user.file[_id].y = y = (event.clientY - this.y);
    socket.emit('file', {_id: _id, x: x, y: y});
@@ -99,11 +94,10 @@ $(function() {
  });
 
  socket.on('progress', function(progress) {
-console.log(progress);
   if(progress._id) {
-   $('.progress .done').css('width', progress.done * parseFloat($('.progress').css('width')));
+   $(user.file[progress._id].element).find('.progress .done').css('width', progress.done * parseFloat($(user.file[progress._id].element).find('.progress').css('width')));
    if(progress.done == 1)
-    $('.progress').fadeOut(300);
+    $(user.file[progress._id].element).find('.progress').fadeOut(300);
   }
  });
 
