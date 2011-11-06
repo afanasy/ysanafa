@@ -28,7 +28,7 @@ ysa.session = function(req, callback) {
  var save = function(user) {
   user.transfer = user.transfer || {};
   if(!user.transfer.available)
-   user.transfer.available = 1028 * 1028;
+   user.transfer.available = 128 / 1024;
   req.session.user = user;
   req.session.save(function(err) {
    req.sessionReady = true;

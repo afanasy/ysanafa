@@ -26,9 +26,13 @@ renderTransfer = function(transfer) {
  transfer.done = transfer.done || 0;
  if(transfer.done > transfer.available)
   transfer.done = transfer.available;
- transfer.done = .5;
- transfer.available = 1.;
+// transfer.done = .5;
+// transfer.available = 1.;
  $('#transfer .done').css('width', (transfer.done / transfer.available) * parseFloat($('#transfer .progress').css('width')));
+ if(transfer.available < 1)
+  $('#transfer .available').text(transfer.available * 1024 + 'M');
+ else
+  $('#transfer .available').text(transfer.available + 'G');
 }
 
 renderFile = function(file) {
@@ -41,7 +45,7 @@ renderFile = function(file) {
   .bind('dragstart', function(event) {
    $('#trash').fadeIn(300);
    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + _id);
-   event.dataTransfer.setData('text/plain', _id);
+   this._id = _id;
    this.x = (event.clientX - parseFloat($(this).css('left')));
    this.y = (event.clientY - parseFloat($(this).css('top')));
   })
@@ -133,6 +137,7 @@ $(function() {
 
  $('#paypal input[name="custom"]').val(user._id);
 
+ user.transfer.available = 0.001;
  renderTransfer(user.transfer);
 
  var x = 0;
@@ -147,12 +152,9 @@ $(function() {
  $('#dropbox').bind('dragover', false);
  $('#dropbox').bind('drop', function(event) {
   for(var i = 0, f; f = event.dataTransfer.files[i]; i++) {
-/*
-   var fileReader = new FileReader();
-   fileReader.onload = (function(file) {return function(event) {
-   }})(f);
-   fileReader.readAsBinaryString(f);
-*/
+   if((parseFloat(user.transfer.done) + (f.size / (1 << 30))) > parseFloat(user.transfer.available))
+    break;
+   
    user.file = user.file || {};
   
    var name = f.name;
@@ -206,7 +208,7 @@ $(function() {
  $('#trash').bind('dragover', false);
 
  $('#trash').bind('drop', function(event) {
-  var _id = event.dataTransfer.getData('text/plain');
+  var _id = this._id;
   socket.emit('delete', {_id: _id});
   $(user.file[_id].element).fadeOut(300, function() {
    delete user.file[_id];
@@ -220,6 +222,7 @@ $(function() {
  });
 
  $('#user .login').bind('click', function() {
+  _gaq.push(['_trackEvent', 'Login', 'click', f.name]);
   FB.login();
  });
 
