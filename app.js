@@ -161,9 +161,25 @@ app.post('/paypal', function(req, res) {
    });
    paypalResponse.on('end', function() {
     if(paypalResponse.data == 'VERIFIED') {
+     req.data = conf.ipn;
      var data = qs.parse(req.data);
-     var transfer = 1024 * 1024 * 1024 * parseInt(data.option_selection1.substr, 10);     
-     ysa.user.update({_id: db.oid(data.custom)}, {$inc: {paid: data.mc_gross, transfer: {available: transfer}}});
+     var transfer = parseInt(data.option_selection1, 10); 
+     data.custom = '4eb6911df7b155313a000001';   
+     ysa.user.update({_id: db.oid(data.custom)}, {$inc: {paid: parseFloat(data.mc_gross), 'transfer.available': transfer}}, {safe: true}, function(err) {
+      ysa.user.findOne({_id: db.oid(data.custom)}, function(err, user) {
+       if(user && user.sid) {
+        user.sid.forEach(function(sessionID) {
+         sessionStore.get(sessionID, function (err, session) {
+          if(session) {
+           session.user.transfer.available = user.transfer.available;
+           sessionStore.set(sessionID, session);
+          }
+         });
+        });
+       }
+      });
+     });
+     
     }
     log.write(paypalResponse.data);
     log.destroySoon();
@@ -211,7 +227,7 @@ app.post('/upload', function(req, res) {
    io.sockets.emit('file', f);
 
    req.session.user.transfer.done = req.session.user.transfer.done || 0;
-   req.session.user.transfer.done += f.data.size;
+   req.session.user.transfer.done += (f.data.size / (1 << 30));
    req.session.save();
    ysa.user.update({'_id': db.oid(req.session.user._id)}, {$inc: {transfer: {done: f.data.size}}});
    io.sockets.emit('transfer', req.session.user.transfer);
