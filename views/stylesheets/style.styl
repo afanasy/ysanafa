@@ -4,12 +4,21 @@ acqua = rgb(3, 101, 100)
 acquaProfonda = rgb(3, 54, 73)
 abisso = rgb(3, 22, 52)
 
+terraTerraTransparent = rgba(232, 221, 203, 0.8)
+acquaTransparent = rgb(3, 101, 100, 0.1) 
+
 body
  font 24px "Lucida Grande", Helvetica, Arial, sans-serif
- background terraTerra
+ background terraTerra url(/images/noise.png)
+
+.label
+ color transparent
+ -webkit-background-clip: text;
+ //background-color white
+ background-color: black;
+ text-shadow: terraTerraTransparent 0px 2px 2px;
 
 a
- color rgb(3, 101, 100)
  text-decoration none
 
 .template
@@ -62,7 +71,7 @@ a
  height 50px
  border-radius 10px
  vertical-align middle
- -webkit-box-shadow 0px 0px 5px 0px #000
+ -webkit-box-shadow 0px 2px 2px 0px #000
 
 #user .name
  font-size: 24px
@@ -80,9 +89,11 @@ a
 
 .info .logout
  display none
+ cursor pointer
  position fixed
  top 45px
  right 20px
+ font-size 14px
 
 .file .name
  font-size: 18px
@@ -131,14 +142,17 @@ a
  display block
  left 0px
  right 0px
- bottom 100px
- height 300px
+ bottom 200px
+ //border 1px solid red
 
 #paypal
  text-align center
- width 442px
- margin-left auto
- margin-right auto
+ width 422px
+ height 145px
+ margin auto
+ background terraTerra url(/images/noise.png)
+ //border 1px solid red
+ border-radius 20px
 
 .buy
  cursor pointer
@@ -155,21 +169,26 @@ a
  border 1px solid transparent
 
 .option
- color acqua
  cursor pointer
  float left
  margin 10px
- background-color acqua
- border-radius 10px
+ //background-color acquaProfonda
+ border-radius 20px
  width 120px
  height 120px
- background-image -webkit-linear-gradient(top, acquaProfonda 0%, abisso 100%)
- -webkit-box-shadow 0px 0px 5px 0px #000
+ //background-image -webkit-linear-gradient(top, acquaProfonda 0%, abisso 100%)
+ //background-image url(/images/noise.png)
+ background-color rgba(255, 255, 255, 0.2)
+ box-shadow inset rgba(255, 255, 255, 0.6) 0px 2px 5px 1px, rgba(0, 0, 0, 1) 0px 2px 5px
 
-.selected
- margin-top 0px
- width 140px
- height 140px 
+.option:hover
+ margin 10px
+ width 120px
+ height 120px
+ background-color rgba(255, 255, 255, 0.6)
+ -webkit-transition-property: width, height, margin, background;  
+ -webkit-transition-duration: .3s, .3s, .3s, .3s;  
+ -webkit-transition-timing-function: ease-in-out, ease-in-out, ease-in-out, ease-in-out;  
 
 .option .value
  display none
@@ -177,45 +196,77 @@ a
 .option .head
  font-size 32px
  margin-top 25px
+ background-color acquaProfonda
+ color: transparent;
+ -webkit-background-clip: text;
+ background-color: abisso;
+ text-shadow: rgba(255, 255, 255, 0.5) 0px 2px 2px;
 
 #status
- text-align center
+ //text-align center
  font-size 32px
- height 50px
+ height 60px
  position fixed
  right -10px
  bottom 0px
  left -10px
- padding-top 20px 
  background-image -webkit-linear-gradient(top, acquaProfonda 0%, abisso 100%)
  -webkit-box-shadow inset 0px 5px 10px 0px #000
 
 #transfer
- position fixed
- right 100px
- bottom 10px
- left 100px 
+ margin-left auto
+ margin-right auto
+ width 610px
+ height 60px
+ //border 1px solid red
+
+#transfer div
+ float left
+ margin-top 10px
+
+#transfer .label
+ color transparent
+ -webkit-background-clip: text;
+ //background-color white
+ background-color: terraTerra;
+ text-shadow: rgba(0, 0, 0, 0.3) 0px -2px 2px;
+
+#transfer .progress
+ float left
  width 300px
  height 30px
- margin auto
+ margin 10px 20px 0px 20px
  border-radius 10px
  padding 5px
  background-image -webkit-linear-gradient(top, abisso 0%, acquaProfonda 120%)
  -webkit-box-shadow inset 0px 0px 10px 0px #000
 
 #transfer .done
+ margin 0px
  width 0px
  height 30px
  border-radius 10px
  background-image -webkit-linear-gradient(top, acqua 0%, acquaProfonda 100%)
 
-#upgrade
- position fixed
+#transfer .upgrade
+ cursor pointer
+ width 40px
+ height 40px
+ font-size 32px
+ //font-weight bold
+ //background-color rgb(3, 101, 100) - 100
+ box-shadow inset rgba(255, 255, 255, 0.5) 0px 2px 2px, inset rgba(0, 0, 0, 0.5) 0px -1px 1px 2px
+ //border 1px solid abisso
+ background-color acqua
+ border-radius 20px
  padding 0px
- right 20px
- bottom 5px
- height 30px
- font-size 24px
- background-color rgb(3, 101, 100) - 100
- border-radius 10px
- padding 10px
+ margin-left 20px
+ vertical-align middle
+ padding-bottom 1px
+
+#transfer .plus
+ float none
+ vertical-align middle
+ margin-top -1px
+ text-align center
+

@@ -26,7 +26,9 @@ renderTransfer = function(transfer) {
  transfer.done = transfer.done || 0;
  if(transfer.done > transfer.available)
   transfer.done = transfer.available;
- $('#transfer .done').css('width', (transfer.done / transfer.available) * parseFloat($('#transfer').css('width')));
+ transfer.done = .5;
+ transfer.available = 1.;
+ $('#transfer .done').css('width', (transfer.done / transfer.available) * parseFloat($('#transfer .progress').css('width')));
 }
 
 renderFile = function(file) {
@@ -73,6 +75,20 @@ toggleHeadline = function() {
 }
 
 $(function() {
+ window.fbAsyncInit = function() {
+  FB.init({
+   appId: facebook.appId,
+   status: true,
+   cookie: true,
+   oauth: true,
+   xfbml: true
+  });
+  FB.Event.subscribe('auth.login', function(response) {
+   console.log('auth.login');
+   socket.emit('authResponse', response.authResponse);
+  });
+ }
+
  socket = io.connect();
 
  socket.on('user', function(user) {
@@ -205,23 +221,9 @@ console.log(progress);
   });
  });
 
- $('#upgrade').click(function() {
+ $('#transfer .upgrade').click(function() {
   $('#pay').fadeToggle(500);
  });
-
- window.fbAsyncInit = function() {
-  FB.init({
-   appId: facebook.appId,
-   status: true,
-   cookie: true,
-   oauth: true,
-   xfbml: true
-  });
-  FB.Event.subscribe('auth.login', function(response) {
-   console.log('auth.login');
-   socket.emit('authResponse', response.authResponse);
-  });
- }
 
  $('#user .login').bind('click', function() {
   FB.login();
@@ -238,9 +240,8 @@ console.log(progress);
  });
 
  $('#paypal .option').click(function() {
-  $('#paypal .option').removeClass('selected');
   $('#paypal form input[name="os0"]').val($(this).find('.value').text());
-  $(this).addClass('selected');
+  $('#paypal form').submit();
  });
 
  $('#paypal .buy').click(function() {
