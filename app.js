@@ -108,7 +108,7 @@ app.configure('production', function() {
 
 app.get('/', function(req, res) {
  ysa.log('/ ' + req.connection.remoteAddress + ' ' + req.headers['user-agent']);
- if((req.headers['user-agent'].indexOf('Chrome') > 0) || (req.headers['user-agent'].indexOf('Safari') > 0)) {
+ if((req.headers['user-agent'].indexOf('Chrome') > 0) || (req.headers['user-agent'].indexOf('Safari') > 0) || (req.headers['user-agent'].indexOf('Google') > 0)) {
   ysa.session(req, function(req) {
    res.render('index', {
     'title': 'Ysanafa',
@@ -179,15 +179,19 @@ app.post('/paypal', function(req, res) {
 //     data.custom = '4eb6911df7b155313a000001'; 
      ysa.log('paypal ' + data.custom + ', ' + data.option_selection1 + ', ' + data.mc_gross);  
      ysa.user.update({_id: db.oid(data.custom)}, {$inc: {paid: parseFloat(data.mc_gross), 'transfer.done': -done}}, {safe: true}, function(err) {
-      ysa.log('transfer -' + done);
+      ysa.log('transfer.done -' + done);
       ysa.log('paid ' + data.mc_gross);
       ysa.user.findOne({_id: db.oid(data.custom)}, function(err, user) {
        if(user && user.sid) {
         user.sid.forEach(function(sessionID) {
          sessionStore.get(sessionID, function (err, session) {
           if(session) {
-           session.user.transfer.available = user.transfer.available;
+           if(!user.transfer.available)
+            user.transfer.available = conf.transfer.available;
+           session.user.transfer = user.transfer;
            sessionStore.set(sessionID, session);
+console.log(user.transfer);
+           io.sockets.in(sessionID).emit('transfer', user.transfer);
           }
          });
         });

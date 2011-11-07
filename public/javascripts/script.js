@@ -26,13 +26,23 @@ renderTransfer = function(transfer) {
  transfer.done = transfer.done || 0;
  if(transfer.done > transfer.available)
   transfer.done = transfer.available;
+ if(transfer.done < 0) {
+  transfer.available = transfer.available - transfer.done;
+  transfer.done = 0;
+ }
 // transfer.done = .5;
 // transfer.available = 1.;
  $('#transfer .done').css('width', (transfer.done / transfer.available) * parseFloat($('#transfer .progress').css('width')));
- if(transfer.available < 1)
-  $('#transfer .available').text(transfer.available * (1 << 10) + 'M');
- else
-  $('#transfer .available').text(transfer.available + 'G');
+ var size = transfer.available;
+ var suffix = 'GB';
+ if(transfer.available < 1) {
+  size = transfer.available * (1 << 10);
+  suffix = 'MB';
+ }
+ size = size.toString();
+ if(size.indexOf('.'))
+  size = size.substr(0, (size.indexOf('.') + 3));
+ $('#transfer .available').text(size + suffix);
 }
 
 renderFile = function(file) {
