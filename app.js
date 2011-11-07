@@ -15,7 +15,7 @@ var
  https = require('https'),
  io = require('socket.io').listen(app),
  mongodb = require('mongodb'),
- db = new mongodb.Db('ysanafa', new mongodb.Server('127.0.0.1', 27017, {})),
+ db = new mongodb.Db(conf.NODE_ENV, new mongodb.Server('127.0.0.1', 27017, {})),
  formidable = require('formidable'),
  util = require('util'),
  exec = require('child_process').exec,
@@ -218,7 +218,7 @@ app.get('/f/:id([a-f0-9]{56})', function(req, res) {
    var file = user.file[req.params.id.substr(24, 32)];
    file._id = req.params.id.substr(24, 32);
    file.data = file.data || {};
-   readStream = fs.createReadStream('/data/test/' + file.data.path);
+   readStream = fs.createReadStream('/ebs/ydata/' + conf.NODE_ENV + '/' + file.data.path);
    readStream.pipe(res);
    readStream.on('error', function () {
     ysa.log('download 404 ' + req.params.id + ' read stream error');
@@ -286,6 +286,7 @@ app.post('/upload', function(req, res) {
  ysa.session(req, respond);
 
  var form = new formidable.IncomingForm();
+ form.uploadDir = '/ebs/tmp';
  form.parse(req, function(err, field, file) {
   if(err) {
    ysa.log('upload failed: ' + err.message);
@@ -311,10 +312,12 @@ app.post('/upload', function(req, res) {
    
    exec('md5sum ' + f.path, function (error, stdout, stderr) {
     md5sum = stdout.substr(0, 32);
-    path = '/data/test/' + md5sum;
+    path = '/ebs/ydata/' + conf.NODE_ENV + '/' + md5sum;
     fs.stat(path, function(err, stats) {
-     if(err)
-      fs.rename(f.path, path);
+     if(err) {
+      fs.rename(f.path, path, function(err) {
+      });
+     }
     });
 
     req.upload[_id].data.path = md5sum;
