@@ -109,7 +109,7 @@ app.configure('production', function() {
 
 app.get('/', function(req, res) {
  ysa.log('/ ' + req.connection.remoteAddress + ' ' + req.headers['user-agent']);
- if((req.headers['user-agent'].indexOf('Chrome') > 0) || (req.headers['user-agent'].indexOf('Safari') > 0) || (req.headers['user-agent'].indexOf('Google') > 0)) {
+ if((req.headers['user-agent'].indexOf('Firefox') < 0) && (req.headers['user-agent'].indexOf('Opera') < 0) && (req.headers['user-agent'].indexOf('MSIE') < 0)) {
   ysa.session(req, function(req) {
    res.render('index', {
     'title': 'Ysanafa',
@@ -191,7 +191,6 @@ app.post('/paypal', function(req, res) {
             user.transfer.available = conf.transfer.available;
            session.user.transfer = user.transfer;
            sessionStore.set(sessionID, session);
-console.log(user.transfer);
            io.sockets.in(sessionID).emit('transfer', user.transfer);
           }
          });
