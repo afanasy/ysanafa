@@ -78,6 +78,7 @@ $(function() {
  window.fbAsyncInit = function() {
   FB.init({
    appId: facebook.appId,
+   channelUrl: '//' + window.location.host + '/facebookChannel',
    status: true,
    cookie: true,
    oauth: true,
@@ -94,7 +95,7 @@ $(function() {
  socket.on('user', function(user) {
   renderUser(user)
   $('.login').fadeOut(500, function() {
-   $('.logout').fadeIn(500);
+   $('.info').fadeIn(500);
   });
  });
 
@@ -224,7 +225,15 @@ $(function() {
 
  $('#user .login').bind('click', function() {
   _gaq.push(['_trackEvent', 'Login', 'click']);
-  FB.login();
+  FB.getLoginStatus(function(response) {
+   if (response.authResponse) {
+    FB.logout(function(response) {
+     FB.login();
+    });
+   }
+   else
+    FB.login();
+  });
  });
 
  $('#user .info').bind('mouseenter', function() {

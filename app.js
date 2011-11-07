@@ -125,6 +125,10 @@ app.get('/', function(req, res) {
   res.end('Browser not supported. Get <a href="http://www.google.com/chrome">Chrome</a>');
  }
 });
+app.get('/facebookChannel', function(req, res) {
+  res.writeHead(200, {'content-type': 'text/html'});
+  res.end('<script src="//connect.facebook.net/en_US/all.js"></script>'); 
+});
 app.get('/facebookApp', function(req, res) {
  res.end();
 });
