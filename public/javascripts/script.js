@@ -78,7 +78,7 @@ $(function() {
  window.fbAsyncInit = function() {
   FB.init({
    appId: facebook.appId,
-   channelUrl: '//' + window.location.host + '/facebookChannel',
+   channelURL: '//' + window.location.host + '/facebookChannel',
    status: true,
    cookie: true,
    oauth: true,
