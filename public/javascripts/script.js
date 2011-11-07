@@ -45,7 +45,8 @@ renderFile = function(file) {
   .bind('dragstart', function(event) {
    $('#trash').fadeIn(300);
    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + _id);
-   this._id = _id;
+   event.dataTransfer.setData('text/plain', _id);
+//   this._id = _id;
    this.x = (event.clientX - parseFloat($(this).css('left')));
    this.y = (event.clientY - parseFloat($(this).css('top')));
   })
@@ -208,7 +209,7 @@ $(function() {
  $('#trash').bind('dragover', false);
 
  $('#trash').bind('drop', function(event) {
-  var _id = this._id;
+  var _id = event.dataTransfer.getData('text/plain');
   socket.emit('delete', {_id: _id});
   $(user.file[_id].element).fadeOut(300, function() {
    delete user.file[_id];
@@ -222,7 +223,7 @@ $(function() {
  });
 
  $('#user .login').bind('click', function() {
-  _gaq.push(['_trackEvent', 'Login', 'click', f.name]);
+  _gaq.push(['_trackEvent', 'Login', 'click']);
   FB.login();
  });
 

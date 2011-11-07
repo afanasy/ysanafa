@@ -69,6 +69,10 @@ db.open(function(error, client) {
  ysa.user = new mongodb.Collection(client, 'user');
 });
 
+process.env.NODE_ENV = conf.NODE_ENV;
+//app.set('env', conf.env);
+//io.set('env', conf.env);
+
 app.configure(function() {
  app.set('views', __dirname + '/views');
  app.set('view engine', 'jade');
@@ -142,6 +146,7 @@ app.get('/paypal', function(req, res) {
  });
 });
 app.post('/paypal', function(req, res) {
+ ysa.log('paypal post');
  var log = fs.createWriteStream('paypal', {flags: 'a'});
  log.write(req.method);
  log.write(req.url);
@@ -162,11 +167,13 @@ app.post('/paypal', function(req, res) {
     paypalResponse.data += data;
    });
    paypalResponse.on('end', function() {
+    ysa.log('paypal response ' + paypalResponse.data);
     if(paypalResponse.data == 'VERIFIED') {
-     req.data = conf.ipn;
+//     req.data = conf.ipn;
      var data = qs.parse(req.data);
      var transfer = parseInt(data.option_selection1, 10); 
-     data.custom = '4eb6911df7b155313a000001';   
+//     data.custom = '4eb6911df7b155313a000001'; 
+     ysa.log('paypal ' + data.custom + ', ' + data.option_selection1 + ', ' + data.mc_gross);  
      ysa.user.update({_id: db.oid(data.custom)}, {$inc: {paid: parseFloat(data.mc_gross), 'transfer.available': transfer}}, {safe: true}, function(err) {
       ysa.user.findOne({_id: db.oid(data.custom)}, function(err, user) {
        if(user && user.sid) {
@@ -181,7 +188,6 @@ app.post('/paypal', function(req, res) {
        }
       });
      });
-     
     }
     log.write(paypalResponse.data);
     log.destroySoon();
@@ -192,14 +198,17 @@ app.post('/paypal', function(req, res) {
  });
 });
 app.get('/f/:id([a-f0-9]{56})', function(req, res) {
+ ysa.log('download started ' + req.params.id);
  ysa.session(req, function(req) {
   var find = {'_id': db.oid(req.params.id.substr(0, 24))};
   find['file.' + req.params.id.substr(24, 32)] = {$exists: true};
   ysa.user.findOne(find, function(err, user) {
    var file = user.file[req.params.id.substr(24, 32)];
+   file.data = file.data || {};
    readStream = fs.createReadStream('/data/test/' + file.data.path);
    readStream.pipe(res);
    readStream.on('error', function () {
+    ysa.log('download 404 ' + req.params.id);
     res.writeHead(404);
     res.end();
    });
@@ -237,8 +246,7 @@ app.post('/upload', function(req, res) {
 //  knox.putFile('/data/test/a', '/data/a', function(err, res) {}); 
   }
   res.writeHead(200, {'content-type': 'text/plain'});
-  res.write('received upload:\n\n');
-  res.end(util.inspect(req.upload));
+  res.end();
  }
 
  ysa.session(req, respond);
@@ -315,24 +323,31 @@ app.post('/upload', function(req, res) {
 io.sockets.n = 0;
 
 io.configure(function () {
- io.set('authorization', function (data, accept) {
-  if(data.headers.cookie) {
-   data.cookie = parseCookie(data.headers.cookie);
-   data.sessionID = data.cookie.sid;
-   sessionStore.get(data.sessionID, function (err, session) {
-    if (err)
-     accept(err.message, false); 
-    else {
-     data.session = new express.session.Session(data, session);
-     accept(null, true);
-    }
-   });
+ io.set('authorization', function (handshake, accept) {
+  if(handshake.headers.cookie) {
+   cookie = parseCookie(handshake.headers.cookie);
+   if(cookie && cookie.sid)
+    handshake.sessionID = cookie.sid;
   }
+  if(handshake.sessionID)
+   accept(null, true);   
   else
    accept('no cookie transmitted', false);
  });
 });
 
+io.configure('production', function() {
+  io.enable('browser client etag');
+  io.set('log level', 1);
+
+  io.set('transports', [
+    'websocket'
+  , 'flashsocket'
+  , 'htmlfile'
+  , 'xhr-polling'
+  , 'jsonp-polling'
+  ]);
+});
 
 io.sockets.on('connection', function (socket) {
  io.sockets.n ++;
@@ -341,6 +356,8 @@ io.sockets.on('connection', function (socket) {
  
  socket.on('authResponse', function(data) {
   sessionStore.get(sessionID, function (err, session) {
+   if(!session)
+    return;
    https.get({
     'host': 'graph.facebook.com',
     'path': '/me?access_token=' + data['accessToken']
@@ -389,15 +406,20 @@ io.sockets.on('connection', function (socket) {
   });
  });
  socket.on('logout', function() {
-  console.log('logout');
-  ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: sessionID}});
-  sessionStore.destroy(sessionID, function() {
-   console.log('session destroyed');
-   socket.emit('logout');
+  sessionStore.get(sessionID, function (err, session) {
+   if(!session)
+    return;
+   ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: sessionID}});
+   sessionStore.destroy(sessionID, function() {
+    console.log('session destroyed');
+    socket.emit('logout');
+   });
   });
  });
  socket.on('delete', function(file) {
   sessionStore.get(sessionID, function (err, session) {
+   if(!session)
+    return;
    ysa.log('delete: ' + file._id);
    delete session.user.file[file._id];
    sessionStore.set(sessionID, session);
@@ -406,11 +428,15 @@ io.sockets.on('connection', function (socket) {
  });
  socket.on('file', function(file) {
   sessionStore.get(sessionID, function (err, session) {
-   var u = {};
-   u['file.' + file._id + '.x'] = session.user.file[file._id].x = file.x;
-   u['file.' + file._id + '.y'] = session.user.file[file._id].y = file.y;
-   ysa.user.update({_id: db.oid(session.user._id)}, {$set: u});
-   sessionStore.set(sessionID, session);
+   if(!session)
+    return;
+   if(session.user && session.user.file && session.user.file[file._id]) {
+    var u = {};
+    u['file.' + file._id + '.x'] = session.user.file[file._id].x = file.x;
+    u['file.' + file._id + '.y'] = session.user.file[file._id].y = file.y;
+    ysa.user.update({_id: db.oid(session.user._id)}, {$set: u});
+    sessionStore.set(sessionID, session);
+   }
   });
  });
  socket.on('disconnect', function() {
@@ -418,5 +444,5 @@ io.sockets.on('connection', function (socket) {
  });
 });
 
-app.listen(8000);
+app.listen(conf.port);
 ysa.log('ysanafa listening on port ' + app.address().port + ' in ' + app.settings.env + ' mode');
