@@ -80,7 +80,8 @@ app.configure(function() {
  app.use(express.session({
   key: 'sid',
   secret: conf.secret,
-  store: sessionStore
+  store: sessionStore,
+  cookie: {maxAge: (365 * 24 * 3600 * 1000)}
  }));
 // app.use(express.bodyParser());
 // app.use(express.methodOverride());
