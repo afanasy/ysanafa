@@ -30,7 +30,7 @@ renderTransfer = function(transfer) {
 // transfer.available = 1.;
  $('#transfer .done').css('width', (transfer.done / transfer.available) * parseFloat($('#transfer .progress').css('width')));
  if(transfer.available < 1)
-  $('#transfer .available').text(transfer.available * 1024 + 'M');
+  $('#transfer .available').text(transfer.available * (1 << 10) + 'M');
  else
   $('#transfer .available').text(transfer.available + 'G');
 }
@@ -138,7 +138,7 @@ $(function() {
 
  $('#paypal input[name="custom"]').val(user._id);
 
- user.transfer.available = 0.001;
+// user.transfer.available = 0.001;
  renderTransfer(user.transfer);
 
  var x = 0;

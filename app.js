@@ -1,5 +1,9 @@
 var
- conf = require('./conf.js'),
+ conf = require('./conf.js');
+
+process.env.NODE_ENV = conf.NODE_ENV;
+
+var
  ysa = {},
  express = require('express'),
  app = express.createServer(),
@@ -32,7 +36,7 @@ ysa.session = function(req, callback) {
  var save = function(user) {
   user.transfer = user.transfer || {};
   if(!user.transfer.available)
-   user.transfer.available = 128 / 1024;
+   user.transfer.available = conf.transfer.available;
   req.session.user = user;
   req.session.save(function(err) {
    req.sessionReady = true;
@@ -69,10 +73,6 @@ db.open(function(error, client) {
  ysa.user = new mongodb.Collection(client, 'user');
 });
 
-process.env.NODE_ENV = conf.NODE_ENV;
-//app.set('env', conf.env);
-//io.set('env', conf.env);
-
 app.configure(function() {
  app.set('views', __dirname + '/views');
  app.set('view engine', 'jade');
@@ -108,7 +108,7 @@ app.configure('production', function() {
 
 app.get('/', function(req, res) {
  ysa.log('/ ' + req.connection.remoteAddress);
- if(req.headers['user-agent'].indexOf('Chrome') > 0) {
+ if((req.headers['user-agent'].indexOf('Chrome') > 0) || (req.headers['user-agent'].indexOf('Safari') > 0)) {
   ysa.session(req, function(req) {
    res.render('index', {
     'title': 'Ysanafa',
@@ -171,10 +171,12 @@ app.post('/paypal', function(req, res) {
     if(paypalResponse.data == 'VERIFIED') {
 //     req.data = conf.ipn;
      var data = qs.parse(req.data);
-     var transfer = parseInt(data.option_selection1, 10); 
+     var done = parseInt(data.option_selection1, 10); 
 //     data.custom = '4eb6911df7b155313a000001'; 
      ysa.log('paypal ' + data.custom + ', ' + data.option_selection1 + ', ' + data.mc_gross);  
-     ysa.user.update({_id: db.oid(data.custom)}, {$inc: {paid: parseFloat(data.mc_gross), 'transfer.available': transfer}}, {safe: true}, function(err) {
+     ysa.user.update({_id: db.oid(data.custom)}, {$inc: {paid: parseFloat(data.mc_gross), 'transfer.done': -done}}, {safe: true}, function(err) {
+      ysa.log('transfer -' + done);
+      ysa.log('paid ' + data.mc_gross);
       ysa.user.findOne({_id: db.oid(data.custom)}, function(err, user) {
        if(user && user.sid) {
         user.sid.forEach(function(sessionID) {
@@ -203,12 +205,19 @@ app.get('/f/:id([a-f0-9]{56})', function(req, res) {
   var find = {'_id': db.oid(req.params.id.substr(0, 24))};
   find['file.' + req.params.id.substr(24, 32)] = {$exists: true};
   ysa.user.findOne(find, function(err, user) {
+   if(!user) {
+    ysa.log('download 404 ' + req.params.id);
+    res.writeHead(404);
+    res.end();
+    return;
+   }
    var file = user.file[req.params.id.substr(24, 32)];
+   file._id = req.params.id.substr(24, 32);
    file.data = file.data || {};
    readStream = fs.createReadStream('/data/test/' + file.data.path);
    readStream.pipe(res);
    readStream.on('error', function () {
-    ysa.log('download 404 ' + req.params.id);
+    ysa.log('download 404 ' + req.params.id + ' read stream error');
     res.writeHead(404);
     res.end();
    });
@@ -216,6 +225,25 @@ app.get('/f/:id([a-f0-9]{56})', function(req, res) {
     res.writeHead(200, {'Content-Type': file.type});
    });
    readStream.on('end', function() {
+    var done  = (file.data.size / (1 << 30));
+    ysa.user.update({'_id': db.oid(user._id)}, {$inc: {'transfer.done': done}}, {safe: true}, function(err) {
+     ysa.log('transfer.done +' + done);
+     ysa.user.findOne({_id: db.oid(user._id)}, function(err, user) {
+      if(user && user.sid) {
+       user.sid.forEach(function(sessionID) {
+        sessionStore.get(sessionID, function (err, session) {
+         if(session) {
+          if(!user.transfer.available)
+           user.transfer.available = conf.transfer.available;
+          session.user.transfer = user.transfer;
+          sessionStore.set(sessionID, session);
+          io.sockets.in(sessionID).emit('transfer', user.transfer);
+         }
+        });
+       });
+      }
+     });
+    });
 //    ysa.transfer.insert({user: {_id: file.user._id}, size: file.data.size, type: 'out'});
    });
   });
@@ -235,13 +263,15 @@ app.post('/upload', function(req, res) {
    var user = {};
    user['file.' + _id] = f;
    ysa.user.findAndModify({'_id': db.oid(req.session.user._id)}, [['_id','asc']], {$set: user}, {upsert: true, new: true}, function(err, user) {});
-   io.sockets.emit('file', f);
+   io.sockets.in(req.sessionID).emit('file', f);
 
+   var done = (f.data.size / (1 << 30));
    req.session.user.transfer.done = req.session.user.transfer.done || 0;
-   req.session.user.transfer.done += (f.data.size / (1 << 30));
+   req.session.user.transfer.done += done;
    req.session.save();
-   ysa.user.update({'_id': db.oid(req.session.user._id)}, {$inc: {transfer: {done: f.data.size}}});
-   io.sockets.emit('transfer', req.session.user.transfer);
+   ysa.user.update({'_id': db.oid(req.session.user._id)}, {$inc: {'transfer.done': done}});
+   io.sockets.in(req.sessionID).emit('transfer', req.session.user.transfer);
+   ysa.log('transfer +' + done);
    
 //  knox.putFile('/data/test/a', '/data/a', function(err, res) {}); 
   }
@@ -299,7 +329,7 @@ app.post('/upload', function(req, res) {
   form._id = name;
   var done = form.bytesReceived / form.bytesExpected;
   if(done == 1) {
-   io.sockets.emit('progress', {
+   io.sockets.in(req.sessionID).emit('progress', {
     '_id': form._id,
     'done': done
    });
@@ -311,7 +341,7 @@ app.post('/upload', function(req, res) {
    req.updateProgress = new Date().getTime();
   now = Date.now();
   if((now > req.updateProgress) || (done == 1)) {
-   io.sockets.emit('progress', {
+   io.sockets.in(req.sessionID).emit('progress', {
     '_id': form._id,
     'done': done
    });
@@ -351,8 +381,10 @@ io.configure('production', function() {
 
 io.sockets.on('connection', function (socket) {
  io.sockets.n ++;
- var session = socket.handshake.session;
+ 
  var sessionID = socket.handshake.sessionID;
+ 
+ socket.join(sessionID);
  
  socket.on('authResponse', function(data) {
   sessionStore.get(sessionID, function (err, session) {
