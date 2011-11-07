@@ -107,7 +107,7 @@ app.configure('production', function() {
 });
 
 app.get('/', function(req, res) {
- ysa.log('/ ' + req.connection.remoteAddress);
+ ysa.log('/ ' + req.connection.remoteAddress + ' ' + req.headers['user-agent']);
  if((req.headers['user-agent'].indexOf('Chrome') > 0) || (req.headers['user-agent'].indexOf('Safari') > 0)) {
   ysa.session(req, function(req) {
    res.render('index', {
