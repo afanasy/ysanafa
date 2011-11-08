@@ -40,7 +40,7 @@ renderTransfer = function(transfer) {
   suffix = 'MB';
  }
  size = size.toString();
- if(size.indexOf('.'))
+ if(size.indexOf('.') > 0)
   size = size.substr(0, (size.indexOf('.') + 3));
  $('#transfer .available').text(size + suffix);
 }
