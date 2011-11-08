@@ -50,7 +50,7 @@ renderFile = function(file) {
  return $('.template .file').clone()
   .css('left', file.x)
   .css('top', file.y)
-  .find('a').attr('href', '/f/' + user._id + _id).end()
+  .find('a').attr('href', '/f/' + user._id + _id + '/' + file.name).end()
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
    $('#trash').fadeIn(300);

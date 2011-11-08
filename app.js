@@ -207,7 +207,7 @@ app.post('/paypal', function(req, res) {
   });
  });
 });
-app.get('/f/:id([a-f0-9]{56})', function(req, res) {
+app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
  ysa.log('download started ' + req.params.id);
  ysa.session(req, function(req) {
   var find = {'_id': db.oid(req.params.id.substr(0, 24))};
