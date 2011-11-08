@@ -50,7 +50,7 @@ renderFile = function(file) {
  return $('.template .file').clone()
   .css('left', file.x)
   .css('top', file.y)
-  .find('a').attr('href', '/f/' + user._id + _id + '/' + file.name).end()
+  .find('a').attr('href', file['goo.gl'] ? 'http://goo.gl/' + file['goo.gl']: '/f/' + user._id + _id + '/' + file.name).end()
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
    $('#trash').fadeIn(300);
@@ -123,7 +123,7 @@ $(function() {
 
  socket.on('file', function(f) {
   $(user.file[hex_md5(f.name)].element)
-   .find('a').attr('href', f._id);
+   .find('a').attr('href', 'http://goo.gl/' + f['ggl']);
  });
 
  socket.on('logout', function() {
@@ -203,10 +203,7 @@ $(function() {
     'url': '/upload', 
     'contentType': false,
     'data': formData,
-    'processData': false,
-    'success': function(data) {
-     console.log(data);
-    }
+    'processData': false
    });
 
    $('#headline').fadeOut(300);

@@ -337,8 +337,32 @@ app.post('/upload', function(req, res) {
 
     req.session.user = user;
     req.session.save();
+    
+    var body = JSON.stringify({'longUrl': 'http://' + conf.host + (conf.port == 80? '': ':' + conf.port) + '/f/' + user._id + _id + '/' + encodeURIComponent(req.upload[_id].name)});
+    var post = https.request({
+     'method': 'POST',
+     'host': 'www.googleapis.com',
+     'path': '/urlshortener/v1/url?key=' + conf.google.key,
+     'headers': {
+      'Content-Type': 'application/json',
+      'Content-Length': body.length
+     }
+    },
+    function(response) {
+     response.setEncoding('utf8');
+     response.data = '';
+     response.on('data', function(data) {
+      response.data += data;
+     });
+     response.on('close', function() {
+      var data = JSON.parse(response.data);
+      if(data.id)
+       req.upload[_id]['ggl'] = data.id.substr(14, data.id.length);
+      respond(req);
+     });
+    });
 
-    respond(req);
+    post.end(body);
    });
   }
  });
