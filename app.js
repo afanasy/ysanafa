@@ -222,6 +222,12 @@ app.get('/f/:id([a-f0-9]{56})', function(req, res) {
    var file = user.file[req.params.id.substr(24, 32)];
    file._id = req.params.id.substr(24, 32);
    file.data = file.data || {};
+   if(req.headers['if-none-match'] && (req.headers['if-none-match'] == file._id)) {
+    ysa.log('download 304 ' + req.params.id);
+    res.writeHead(304);
+    res.end();
+    return;    
+   }
    readStream = fs.createReadStream('/ebs/ydata/' + conf.NODE_ENV + '/' + file.data.path);
    readStream.pipe(res);
    readStream.on('error', function () {
@@ -230,7 +236,7 @@ app.get('/f/:id([a-f0-9]{56})', function(req, res) {
     res.end();
    });
    readStream.on('open', function() {
-    res.writeHead(200, {'Content-Type': file.type});
+    res.writeHead(200, {'Content-Type': file.type, 'ETag': file._id});
    });
    readStream.on('end', function() {
     var done  = (file.data.size / (1 << 30));
