@@ -236,7 +236,7 @@ app.get('/f/:id([a-f0-9]{56})', function(req, res) {
     res.end();
    });
    readStream.on('open', function() {
-    res.writeHead(200, {'Content-Type': file.type, 'ETag': file._id});
+    res.writeHead(200, {'Content-Type': file.type, 'Content-Length': file.data.size, 'ETag': file._id});
    });
    readStream.on('end', function() {
     var done  = (file.data.size / (1 << 30));
