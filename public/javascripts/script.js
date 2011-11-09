@@ -184,6 +184,10 @@ $(function() {
   delete $(this).get(0).dragId;
   for(var i = 0, f; f = event.dataTransfer.files[i]; i++) {
    if((parseFloat(user.transfer.done) + (f.size / (1 << 30))) > parseFloat(user.transfer.available)) {
+    $('#transfer .done').addClass('blink');
+    setTimeout(function() {
+     $('#transfer .done').removeClass('blink');
+    }, 2000);
     break;
    }
    
