@@ -47,7 +47,7 @@ renderTransfer = function(transfer) {
 
 renderFile = function(file) {
  var _id = hex_md5(file.name);
- var href = (file['ggl'] && false) ? 'http://goo.gl/' + file['ggl']: 'http://' + window.location.host + '/f/' + user._id + _id + '/' + encodeURIComponent(file.name);
+ var href = file['ggl'] ? 'http://goo.gl/' + file['ggl']: 'http://' + window.location.host + '/f/' + user._id + _id + '/' + encodeURIComponent(file.name);
  var element = $('.template .file').clone()
   .css('left', file.x)
   .css('top', file.y)
@@ -158,6 +158,9 @@ $(function() {
 
 // user.transfer.available = 0.001;
  renderTransfer(user.transfer);
+
+// $('.file .progress').show(0);
+// $('.file .done').css('width', 30);
 
  user.file = user.file || {};
  for(var _id in user.file)
