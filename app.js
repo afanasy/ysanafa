@@ -8,7 +8,7 @@ var
  express = require('express'),
  app = express.createServer(),
  sessionStore = new express.session.MemoryStore(),
- parseCookie = require('connect').utils.parseCookie,
+// parseCookie = require('connect').utils.parseCookie,
  stylus = require('stylus'),
  fs = require('fs'),
  knox = require('knox'),
@@ -21,6 +21,35 @@ var
  exec = require('child_process').exec,
  hashlib = require('hashlib'),
  qs = require('qs');
+
+parseCookie = function(str){
+  var obj = {}
+    , pairs = str.split(/[;,] */);
+  for (var i = 0, len = pairs.length; i < len; ++i) {
+    var pair = pairs[i]
+      , eqlIndex = pair.indexOf('=')
+      , key = pair.substr(0, eqlIndex).trim().toLowerCase()
+      , val = pair.substr(++eqlIndex, pair.length).trim();
+
+    // quoted values
+    if ('"' == val[0]) val = val.slice(1, -1);
+
+    // only assign once
+    if (undefined == obj[key]) {
+      val = val.replace(/\+/g, ' ');
+      try {
+        obj[key] = decodeURIComponent(val);
+      } catch (err) {
+        if (err instanceof URIError) {
+          obj[key] = val;
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+  return obj;
+};
 
 ysa.log = function(message) {
  console.log((new Date).toString().substr(4, 20) + ' ' + message);

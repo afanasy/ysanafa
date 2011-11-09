@@ -2,8 +2,18 @@
     "name": "ysanafa"
   , "version": "0.0.1"
   , "private": true
+  , "author": "Afanasy Kurakin <afanasy@gmail.com>"
+  , "repository": "git://github.com/afanasy/ysanafa.git"
   , "dependencies": {
       "express": "2.4.7"
+    , "formidable": "1.0.6"
+    , "hashlib": "1.0.1"
     , "jade": ">= 0.0.1"
+    , "knox": "0.0.9"
+    , "mongodb": "0.9.6-23"
+    , "qs": "0.3.1"
+    , "socket.io": ">= 0.8.6"
+    , "stylus": "0.19.0"
   }
+  , "engines": { "node": ">= 0.4.0" }
 }

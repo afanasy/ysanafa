@@ -44,6 +44,8 @@ renderTransfer = function(transfer) {
 }
 
 renderFile = function(file) {
+ if(!file.name)
+  return;
  var _id = hex_md5(file.name);
  var href = file['ggl'] ? 'http://goo.gl/' + file['ggl']: 'http://' + window.location.host + '/f/' + user._id + _id + '/' + encodeURIComponent(file.name);
  var element = $('.template .file').clone()
@@ -117,9 +119,7 @@ $(function() {
 
  socket.on('progress', function(progress) {
   if(progress._id) {
-   var width = progress.done * parseFloat($(user.file[progress._id].element).find('.progress').css('width'));
-   if(width > 5)
-   $(user.file[progress._id].element).find('.progress .done').css('width', width);
+   $(user.file[progress._id].element).find('.progress .done').css('width', progress.done * parseFloat($(user.file[progress._id].element).find('.progress').css('width')));
    if(progress.done == 1)
     $(user.file[progress._id].element).find('.progress').fadeOut(300);
   }
