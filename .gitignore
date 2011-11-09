@@ -1,3 +1,4 @@
+*.log
 conf.js
 node_modules/
 public/stylesheets/
