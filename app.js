@@ -37,6 +37,8 @@ ysa.session = function(req, callback) {
   user.transfer = user.transfer || {};
   if(!user.transfer.available)
    user.transfer.available = conf.transfer.available;
+  if(!user.transfer.done)
+   user.transfer.done = 0;
   req.session.user = user;
   req.session.save(function(err) {
    req.sessionReady = true;
@@ -46,7 +48,14 @@ ysa.session = function(req, callback) {
 
  ysa.user.findAndModify({'sid': req.cookies['sid']}, [['_id','asc']], {$set: {'sid.$': req.sessionID}}, {'new': true}, function(err, user) {
   if(!user) {
-   user = {'sid': [req.sessionID], 'created': (new Date).getTime()};
+   user = {
+    sid: [req.sessionID],
+    created: (new Date).getTime(),
+    transfer: {
+     available: conf.transfer.available,
+     done: 0
+    }
+   };
    ysa.user.insert(user, {safe: true}, function(err, user) {
     save(user[0]);
    });
@@ -137,7 +146,7 @@ app.get('/status', function(req, res) {
  res.send('connections: ' + io.sockets.n + '<br>memory: ' + util.inspect(process.memoryUsage()));
 });
 app.get('/paypal', function(req, res) {
- var log = fs.createWriteStream('paypal', {flags: 'a'});
+ var log = fs.createWriteStream('paypal.log', {flags: 'a'});
  log.write(req.method);
  log.write(req.url);
  log.write(util.inspect(req.headers));
@@ -176,11 +185,11 @@ app.post('/paypal', function(req, res) {
     if(paypalResponse.data == 'VERIFIED') {
 //     req.data = conf.ipn;
      var data = qs.parse(req.data);
-     var done = parseInt(data.option_selection1, 10); 
+     var available = parseInt(data.option_selection1, 10); 
 //     data.custom = '4eb6911df7b155313a000001'; 
      ysa.log('paypal ' + data.custom + ', ' + data.option_selection1 + ', ' + data.mc_gross);  
-     ysa.user.update({_id: db.oid(data.custom)}, {$inc: {paid: parseFloat(data.mc_gross), 'transfer.done': -done}}, {safe: true}, function(err) {
-      ysa.log('transfer.done -' + done);
+     ysa.user.update({_id: db.oid(data.custom)}, {$inc: {paid: parseFloat(data.mc_gross), 'transfer.available': available}}, {safe: true}, function(err) {
+      ysa.log('transfer.available +' + available);
       ysa.log('paid ' + data.mc_gross);
       ysa.user.findOne({_id: db.oid(data.custom)}, function(err, user) {
        if(user && user.sid) {
@@ -219,9 +228,16 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
     res.end();
     return;
    }
+   user.transfer.available
    var file = user.file[req.params.id.substr(24, 32)];
    file._id = req.params.id.substr(24, 32);
    file.data = file.data || {};
+   if((user.transfer.done + (file.data.size / (1 << 30))) > user.transfer.available) {
+    ysa.log('download 402 ' + req.params.id);
+    res.writeHead(402);
+    res.end();
+    return;
+   }
    if(req.headers['if-none-match'] && (req.headers['if-none-match'] == file._id)) {
     ysa.log('download 304 ' + req.params.id);
     res.writeHead(304);
@@ -306,6 +322,10 @@ app.post('/upload', function(req, res) {
   req.upload = {};
   for(_id in file) {
    var f = file[_id];
+   if((user.transfer.done + (f.size / (1 << 30))) > user.transfer.available) {
+    io.sockets.in(req.sessionID).emit('delete', _id);
+    continue;
+   }
 
    field[_id] = JSON.parse(field[_id]);
    ysa.log('upload: ' + field[_id].name);

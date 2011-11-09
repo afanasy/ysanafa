@@ -26,23 +26,21 @@ renderTransfer = function(transfer) {
  transfer.done = transfer.done || 0;
  if(transfer.done > transfer.available)
   transfer.done = transfer.available;
- if(transfer.done < 0) {
-  transfer.available = transfer.available - transfer.done;
-  transfer.done = 0;
- }
 // transfer.done = .5;
 // transfer.available = 1.;
  $('#transfer .done').css('width', (transfer.done / transfer.available) * parseFloat($('#transfer .progress').css('width')));
- var size = transfer.available;
+ var available = transfer.available;
  var suffix = 'GB';
- if(transfer.available < 1) {
-  size = transfer.available * (1 << 10);
+ var size = 3;
+ if(available < 1) {
+  available *= (1 << 10);
   suffix = 'MB';
+  size = 0;
  }
- size = size.toString();
- if(size.indexOf('.') > 0)
-  size = size.substr(0, (size.indexOf('.') + 3));
- $('#transfer .available').text(size + suffix);
+ available = available.toString();
+ if(available.indexOf('.') > 0)
+  available = available.substr(0, (available.indexOf('.') + size));
+ $('#transfer .available').text(available + suffix);
 }
 
 renderFile = function(file) {
@@ -134,6 +132,15 @@ $(function() {
    .find('a').attr('href', 'http://goo.gl/' + f['ggl']);
  });
 
+ socket.on('delete', function(_id) {
+  if(!user.file[_id])
+   return;
+  $(user.file[_id].element).fadeOut(300, function() {
+   delete user.file[_id];
+   toggleHeadline();
+  });
+ });
+
  socket.on('logout', function() {
   FB.logout(function(response) {
    window.location.reload();
@@ -176,8 +183,9 @@ $(function() {
  $('#dropbox').bind('drop', function(event) {
   delete $(this).get(0).dragId;
   for(var i = 0, f; f = event.dataTransfer.files[i]; i++) {
-   if((parseFloat(user.transfer.done) + (f.size / (1 << 30))) > parseFloat(user.transfer.available))
+   if((parseFloat(user.transfer.done) + (f.size / (1 << 30))) > parseFloat(user.transfer.available)) {
     break;
+   }
    
    user.file = user.file || {};
   
