@@ -301,7 +301,7 @@ app.post('/upload', function(req, res) {
    req.session.save();
    ysa.user.update({'_id': db.oid(req.session.user._id)}, {$inc: {'transfer.done': done}});
    io.sockets.in(req.sessionID).emit('transfer', req.session.user.transfer);
-   ysa.log('transfer +' + done);
+   ysa.log('transfer.done +' + done);
    
 //  knox.putFile('/data/test/a', '/data/a', function(err, res) {}); 
   }
@@ -467,13 +467,9 @@ io.sockets.on('connection', function (socket) {
      if(data.id) {
       ysa.user.findOne({'facebook.id': data.id}, function(err, user) {
        if(user) {
-        console.log('found facebook user');
-        console.log('will push');
-        console.log(sessionID);
         ysa.user.update({_id: db.oid(user._id)}, {$set: {facebook: data}, $push: {sid: sessionID}}, {safe: true}, function(err) {
          ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: sessionID}}, {safe: true} ,function(err) {
           sessionStore.destroy(sessionID, function() {
-           console.log('reload');
            socket.emit('reload');
           });
          });
