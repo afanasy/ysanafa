@@ -117,7 +117,9 @@ $(function() {
 
  socket.on('progress', function(progress) {
   if(progress._id) {
-   $(user.file[progress._id].element).find('.progress .done').css('width', progress.done * parseFloat($(user.file[progress._id].element).find('.progress').css('width')));
+   var width = progress.done * parseFloat($(user.file[progress._id].element).find('.progress').css('width'));
+   if(width > 5)
+   $(user.file[progress._id].element).find('.progress .done').css('width', width);
    if(progress.done == 1)
     $(user.file[progress._id].element).find('.progress').fadeOut(300);
   }
