@@ -1,4 +1,4 @@
-$.event.props.push('dataTransfer');
+$.event.props.push('dataTransfer', 'pageX', 'pageY');
 
 (function(d, s, id) {
  var js, fjs = d.getElementsByTagName(s)[0];
@@ -47,28 +47,37 @@ renderTransfer = function(transfer) {
 
 renderFile = function(file) {
  var _id = hex_md5(file.name);
- return $('.template .file').clone()
+ var href = (file['ggl'] && false) ? 'http://goo.gl/' + file['ggl']: 'http://' + window.location.host + '/f/' + user._id + _id + '/' + encodeURIComponent(file.name);
+ var element = $('.template .file').clone()
   .css('left', file.x)
   .css('top', file.y)
-  .find('a').attr('href', file['ggl'] ? 'http://goo.gl/' + file['ggl']: '/f/' + user._id + _id + '/' + file.name).end()
+  .find('a').attr('href', href).end()
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
    $('#trash').fadeIn(300);
-   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + 'http://' + window.location.host + '/f/' + user._id + _id);
-   event.dataTransfer.setData('text/plain', _id);
+   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + href);
+//   event.dataTransfer.setData('URL', href);
+//   event.dataTransfer.setData("text/uri-list", href);
+   event.dataTransfer.setData('text/plain', href);
+   $('#dropbox').get(0).dragId = _id;
 //   this._id = _id;
-   this.x = (event.clientX - parseFloat($(this).css('left')));
-   this.y = (event.clientY - parseFloat($(this).css('top')));
+   this.x = (event.pageX - parseFloat($(this).css('left')));
+   this.y = (event.pageY - parseFloat($(this).css('top')));
   })
   .bind('dragend', function(event) {
-   user.file[_id].x = x = (event.clientX - this.x);
-   user.file[_id].y = y = (event.clientY - this.y);
-   socket.emit('file', {_id: _id, x: x, y: y});
-   $(this).css('left', x);
-   $(this).css('top', y);
+   if(!$('#dropbox').get(0).dragId) {
+    x = ($('#dropbox').get(0).dragoverX - this.x);
+    y = ($('#dropbox').get(0).dragoverY - this.y);
+    user.file[_id].x = x;
+    user.file[_id].y = y;
+    socket.emit('file', {_id: _id, x: x, y: y});
+    $(this).css('left', x);
+    $(this).css('top', y);
+   }
    $('#trash').fadeOut(300);
   })
-  .appendTo('#dropbox').fadeIn(300).get()[0];
+  .appendTo('#dropbox').fadeIn(300).get(0);
+ user.file[_id].element = element;
 }
 
 toggleHeadline = function() {
@@ -95,7 +104,6 @@ $(function() {
    xfbml: true
   });
   FB.Event.subscribe('auth.login', function(response) {
-   console.log('auth.login');
    socket.emit('authResponse', response.authResponse);
   });
  }
@@ -137,7 +145,6 @@ $(function() {
  });
 
  socket.on('reconnect_failed', function() {
-  console.log('reconnect failed');
  });
 
  if(user.facebook) {
@@ -152,17 +159,19 @@ $(function() {
 // user.transfer.available = 0.001;
  renderTransfer(user.transfer);
 
- var x = 0;
- var y = 0;
- for(name in user.file) {
-  user.file[name].element = renderFile(user.file[name], x, y);
-  y += 200;
- }
- 
+ user.file = user.file || {};
+ for(var _id in user.file)
+  renderFile(user.file[_id]);
+
  toggleHeadline();
  
- $('#dropbox').bind('dragover', false);
+ $('#dropbox').bind('dragover', function(event) {
+  this.dragoverX = event.pageX;
+  this.dragoverY = event.pageY;
+  return false;
+ });
  $('#dropbox').bind('drop', function(event) {
+  delete $(this).get(0).dragId;
   for(var i = 0, f; f = event.dataTransfer.files[i]; i++) {
    if((parseFloat(user.transfer.done) + (f.size / (1 << 30))) > parseFloat(user.transfer.available))
     break;
@@ -183,8 +192,8 @@ $(function() {
 
    user.file[_id] = {
     'name': name,
-    'x': (event.clientX - 64),
-    'y': (event.clientY - 64),
+    'x': (event.pageX - 64),
+    'y': (event.pageY - 64),
     'data': {
      'size': f.size
     }
@@ -193,7 +202,7 @@ $(function() {
    var formData = new FormData();
    formData.append(_id, JSON.stringify(user.file[_id]));
    
-   user.file[_id].element = renderFile(user.file[_id]);
+   renderFile(user.file[_id]);
    $(user.file[_id].element).find('.progress').fadeIn(0);
 
    formData.append(_id, f);
@@ -217,11 +226,12 @@ $(function() {
  $('#trash').bind('dragover', false);
 
  $('#trash').bind('drop', function(event) {
-  var _id = event.dataTransfer.getData('text/plain');
+  var _id = $('#dropbox').get(0).dragId;
+  delete $(this).get(0).dragId;
   socket.emit('delete', {_id: _id});
+  $('#trash').fadeOut(300);
   $(user.file[_id].element).fadeOut(300, function() {
    delete user.file[_id];
-   $('#trash').fadeOut(300);
    toggleHeadline();
   });
  });
