@@ -150,18 +150,21 @@ app.get('/', function(req, res) {
  if((req.headers['user-agent'].indexOf('Firefox') < 0) && (req.headers['user-agent'].indexOf('Opera') < 0) && (req.headers['user-agent'].indexOf('MSIE') < 0)) {
   ysa.session(req, function(req) {
    res.render('index', {
-    'title': 'Ysanafa',
-    'user': JSON.stringify(req.session.user),
-    'facebook': JSON.stringify({'appId': conf.facebook.appId}),
-    'ga': conf.ga,
-    'paypal': conf.paypal
+    title: 'Ysanafa',
+    user: JSON.stringify(req.session.user),
+    facebook: JSON.stringify({'appId': conf.facebook.appId}),
+    ga: conf.ga,
+    paypal: conf.paypal
    });
   });
  }
  else {
+  res.render('notSupported', {
+   title: 'Browser not supported',
+   ga: conf.ga,
+   layout: false
+  });
   ysa.log('browser not supported: ' + req.headers['user-agent']);
-  res.writeHead(200, {'content-type': 'text/html'});
-  res.end('Browser not supported. Get <a href="http://www.google.com/chrome">Chrome</a>');
  }
 });
 app.get('/facebookChannel', function(req, res) {
