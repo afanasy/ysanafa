@@ -201,9 +201,14 @@ $(function() {
    var name = f.name;
    var _id = hex_md5(name);
 
+   var extension = ((/.+(\.[^\. ]+)$/).exec(name) || [])[1];
+   
    while(true) {
     if(user.file[_id]) {
-     name += ' copy';
+     if(extension)
+      name = name.substr(0, name.length - extension.length) + ' copy' + extension;
+     else
+      name += ' copy';
     _id = hex_md5(name);
     }
     else
