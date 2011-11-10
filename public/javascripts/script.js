@@ -75,6 +75,7 @@ renderFile = function(file) {
     $(this).css('top', y);
    }
    $('#trash').fadeOut(300);
+   return false;
   })
   .appendTo('#dropbox').fadeIn(300).get(0);
  user.file[_id].element = element;
@@ -257,6 +258,7 @@ $(function() {
    delete user.file[_id];
    toggleHeadline();
   });
+  return false;
  });
 
  $('#transfer .upgrade').click(function() {

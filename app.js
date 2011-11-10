@@ -10,6 +10,7 @@ var
  sessionStore = new express.session.MemoryStore(),
 // parseCookie = require('connect').utils.parseCookie,
  stylus = require('stylus'),
+ nib = require('nib'),
  fs = require('fs'),
  knox = require('knox'),
  https = require('https'),
@@ -131,7 +132,9 @@ app.configure(function() {
    return stylus(str)
    .set('filename', path)
    .set('warn', true)
-   .set('compress', true);
+   .set('compress', true)
+   .use(nib())
+   .import('nib');
   }
  }));
  app.use(express.static(__dirname + '/public'));
@@ -147,7 +150,7 @@ app.configure('production', function() {
 
 app.get('/', function(req, res) {
  ysa.log('/ ' + req.connection.remoteAddress + ' ' + req.headers['user-agent']);
- if((req.headers['user-agent'].indexOf('Firefox') < 0) && (req.headers['user-agent'].indexOf('Opera') < 0) && (req.headers['user-agent'].indexOf('MSIE') < 0)) {
+ if((req.headers['user-agent'].indexOf('Opera') < 0) && (req.headers['user-agent'].indexOf('MSIE') < 0)) {
   ysa.session(req, function(req) {
    res.render('index', {
     title: 'Ysanafa',
