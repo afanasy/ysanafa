@@ -539,8 +539,10 @@ io.sockets.on('connection', function (socket) {
    if(!session)
     return;
    ysa.log('delete: ' + file._id);
-   delete session.user.file[file._id];
-   sessionStore.set(sessionID, session);
+   if(session.user.file && session.user.file[file._id]) {
+    delete session.user.file[file._id];
+    sessionStore.set(sessionID, session);
+   }
    ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {file: file._id}});
   });
  });

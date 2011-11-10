@@ -118,8 +118,10 @@ $(function() {
  });
 
  socket.on('progress', function(progress) {
-  if(progress._id) {
-   $(user.file[progress._id].element).find('.progress .done').css('width', progress.done * parseFloat($(user.file[progress._id].element).find('.progress').css('width')));
+  if(progress._id && user.file[progress._id]) {
+   var width = progress.done * parseFloat($(user.file[progress._id].element).find('.progress').css('width'));
+   if(width > 5)
+    $(user.file[progress._id].element).find('.progress .done').css('width', width);
    if(progress.done == 1)
     $(user.file[progress._id].element).find('.progress').fadeOut(300);
   }
@@ -224,7 +226,7 @@ $(function() {
 
    formData.append(_id, f);
 
-   $.ajax({
+   user.file[_id].upload = $.ajax({
     'type': 'POST',
     'url': '/upload', 
     'contentType': false,
@@ -245,6 +247,10 @@ $(function() {
  $('#trash').bind('drop', function(event) {
   var _id = $('#dropbox').get(0).dragId;
   delete $(this).get(0).dragId;
+  if(!user.file[_id])
+   return;
+  if(user.file[_id].upload)
+   user.file[_id].upload.abort();
   socket.emit('delete', {_id: _id});
   $('#trash').fadeOut(300);
   $(user.file[_id].element).fadeOut(300, function() {
