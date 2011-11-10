@@ -369,8 +369,7 @@ app.post('/upload', function(req, res) {
     }
    }
    
-   exec('md5sum ' + f.path, function (error, stdout, stderr) {
-    md5sum = stdout.substr(0, 32);
+   hashlib.md5_file(f.path, function(md5sum) {
     path = '/ebs/ydata/' + conf.NODE_ENV + '/' + md5sum;
     fs.stat(path, function(err, stats) {
      if(err) {
