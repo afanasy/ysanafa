@@ -103,7 +103,6 @@ ysa.session = function(req, callback) {
 
 //knox = knox.createClient(conf.amazon);
 
-//console.log(require('tty').isatty(process.stdout.fd));
 db.oid = function(id) {
  return db.bson_serializer.ObjectID(String(id));
 }
@@ -263,7 +262,6 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
     res.end();
     return;
    }
-   user.transfer.available
    var file = user.file[req.params.id.substr(24, 32)];
    file._id = req.params.id.substr(24, 32);
    file.data = file.data || {};
@@ -273,13 +271,33 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
     res.end();
     return;
    }
-   if(req.headers['if-none-match'] && (req.headers['if-none-match'] == file._id)) {
+   if(req.headers['if-none-match'] && (req.headers['if-none-match'] == file._id) && (req.headers['cache-control'] != 'max-age=0')) {
     ysa.log('download 304 ' + req.params.id);
     res.writeHead(304);
     res.end();
     return;    
    }
-   readStream = fs.createReadStream('/ebs/ydata/' + conf.NODE_ENV + '/' + file.data.path);
+   res.on('close', function() {
+    console.log('response closed');
+   });
+   var options = {};
+   if(req.headers['range'] && (!('if-range' in req.headers) || (req.headers['if-range'] == file._id))) {
+    var range = (/bytes=(\d*)-(\d*)/).exec(req.headers['range']);
+
+    options.start = parseInt(range[1], 10);
+    options.end = parseInt(range[2], 10);
+
+    if (isNaN(options.start)) {
+      options.start = file.data.size - end;
+      options.end = file.data.size - 1;
+    } else if (isNaN(options.end)) {
+      options.end = file.data.size - 1;
+    }
+
+    if (isNaN(options.start) || isNaN(options.end) || options.start > options.end)
+     options = {};
+   }
+   readStream = fs.createReadStream('/ebs/ydata/' + conf.NODE_ENV + '/' + file.data.path, options);
    readStream.pipe(res);
    readStream.on('error', function () {
     ysa.log('download 404 ' + req.params.id + ' read stream error');
@@ -287,10 +305,23 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
     res.end();
    });
    readStream.on('open', function() {
-    res.writeHead(200, {'Content-Type': file.type, 'Content-Length': file.data.size, 'ETag': file._id});
+    var headers = {
+     'Content-Type': file.type,
+     'Accept-Ranges': 'bytes'
+    };
+    if(req.headers['range'] && ('start' in options) && ('end' in options)) {
+     headers['Date'] = new Date().toUTCString();
+     headers['Content-Length'] = (options.end - options.start + 1);
+     headers['Content-Range'] = 'bytes ' + options.start + '-' + options.end + '/' + file.data.size;
+     res.writeHead(206, headers);
+    }
+    else {
+     headers['Content-Length'] = file.data.size;
+     headers['Etag'] = file._id;
+     res.writeHead(200, headers);
+    }
    });
-   readStream.on('end', function() {
-    var done  = (file.data.size / (1 << 30));
+   var updateTransfer = function(done) {
     ysa.user.update({'_id': db.oid(user._id)}, {$inc: {'transfer.done': done}}, {safe: true}, function(err) {
      ysa.log('transfer.done +' + done);
      ysa.user.findOne({_id: db.oid(user._id)}, function(err, user) {
@@ -309,7 +340,21 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
       }
      });
     });
-//    ysa.transfer.insert({user: {_id: file.user._id}, size: file.data.size, type: 'out'});
+   }
+   readStream.on('data', function(data) {
+    readStream.dataLength = readStream.dataLength || 0;
+    readStream.dataLength += data.length;
+    if(!readStream.updateTransfer)
+     readStream.updateTransfer = new Date().getTime();
+    now = Date.now();
+    if(now > readStream.updateTransfer) {
+     updateTransfer(readStream.dataLength / (1 << 30));
+     readStream.dataLength = 0;
+     readStream.updateTransfer = now + 500;
+    }
+   });
+   readStream.on('end', function() {
+    updateTransfer(readStream.dataLength / (1 << 30));
    });
   });
  });
@@ -495,11 +540,10 @@ io.sockets.on('connection', function (socket) {
      res.data += data;
     });
     res.on('end', function() {
-     console.log(res.data);
      data = JSON.parse(res.data);
-     console.log(data.id);
      if(data.id) {
       ysa.user.findOne({'facebook.id': data.id}, function(err, user) {
+       ysa.log('facebook: ' + data.id + ' ' + data.first_name);
        if(user) {
         ysa.user.update({_id: db.oid(user._id)}, {$set: {facebook: data}, $push: {sid: sessionID}}, {safe: true}, function(err) {
          ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: sessionID}}, {safe: true} ,function(err) {
@@ -510,7 +554,6 @@ io.sockets.on('connection', function (socket) {
         });
        }
        else {
-        console.log('new facebook user');
         ysa.user.update({_id: db.oid(session.user._id)}, {$set: {facebook: data}}, {safe: true}, function(err) {
          session.user.facebook = data;
          sessionStore.set(sessionID, session);
@@ -534,7 +577,6 @@ io.sockets.on('connection', function (socket) {
     return;
    ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: sessionID}});
    sessionStore.destroy(sessionID, function() {
-    console.log('session destroyed');
     socket.emit('logout');
    });
   });
