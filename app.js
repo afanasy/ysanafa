@@ -171,7 +171,7 @@ app.get('/', function(req, res) {
 });
 app.get('/facebookChannel', function(req, res) {
   res.writeHead(200, {'content-type': 'text/html'});
-  res.end('<script src="//connect.facebook.net/en_US/all.js"></script>'); 
+  res.end('<script src="http://connect.facebook.net/en_US/all.js"></script>'); 
 });
 app.get('/facebookApp', function(req, res) {
  res.end();
@@ -615,4 +615,4 @@ io.sockets.on('connection', function (socket) {
 });
 
 app.listen(conf.port);
-ysa.log('ysanafa listening on port ' + app.address().port + ' in ' + app.settings.env + ' mode');
+ysa.log('ysanafa listening on port ' + conf.port + ' in ' + app.settings.env + ' mode');
