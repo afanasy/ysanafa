@@ -313,11 +313,13 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
      headers['Date'] = new Date().toUTCString();
      headers['Content-Length'] = (options.end - options.start + 1);
      headers['Content-Range'] = 'bytes ' + options.start + '-' + options.end + '/' + file.data.size;
+     ysa.log('download 206 ' + req.params.id + ' ' + headers['Content-Range']);
      res.writeHead(206, headers);
     }
     else {
      headers['Content-Length'] = file.data.size;
      headers['Etag'] = file._id;
+     ysa.log('download 200 ' + req.params.id);
      res.writeHead(200, headers);
     }
    });
@@ -355,6 +357,7 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
    });
    readStream.on('end', function() {
     updateTransfer(readStream.dataLength / (1 << 30));
+    readStream.dataLength = 0;
    });
   });
  });
