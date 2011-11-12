@@ -578,7 +578,7 @@ io.sockets.on('connection', function (socket) {
   sessionStore.get(sessionID, function (err, session) {
    if(!session)
     return;
-   ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {sid: sessionID}});
+   ysa.user.update({_id: db.oid(session.user._id)}, {$pull: {sid: sessionID}});
    sessionStore.destroy(sessionID, function() {
     socket.emit('logout');
    });
