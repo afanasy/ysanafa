@@ -14,6 +14,14 @@ $.event.props.push('dataTransfer', 'pageX', 'pageY');
  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
 })();
 
+if(window.navigator.userAgent.indexOf('AppleWebKit') > 0) {
+ (function() {
+  var webkit = document.createElement('link'); webkit.rel = 'stylesheet'; webkit.async = true;
+  webkit.href = '/stylesheets/webkit.css';
+  var l = document.getElementsByTagName('link')[1]; l.parentNode.insertBefore(webkit, l);
+ })();
+}
+
 var socket;
 
 renderUser = function(user) {

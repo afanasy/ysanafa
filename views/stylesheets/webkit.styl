@@ -1,0 +1,22 @@
+terraTerra = rgb(232, 221, 203)
+terraTerraTransparent = rgba(232, 221, 203, 0.8)
+abisso = rgb(3, 22, 52)
+
+.label
+ color transparent
+ -webkit-background-clip text
+ background-color black
+ text-shadow terraTerraTransparent 0px 2px 2px
+
+#transfer .label
+ color transparent
+ -webkit-background-clip text
+ background-color terraTerra
+ text-shadow rgba(0, 0, 0, 0.3) 0px -2px 2px
+
+.option .head
+ color transparent
+ -webkit-background-clip text
+ background-color abisso
+ text-shadow rgba(255, 255, 255, 0.5) 0px 2px 2px
+

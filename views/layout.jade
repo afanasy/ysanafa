@@ -3,31 +3,18 @@ html
  head
   title= title
   meta(http-equiv='X-UA-Compatible', content='chrome=1')
-  link(rel='icon', type='image/png', href='/images/y.png')
-  link(rel='stylesheet', href='/stylesheets/style.css')
-  style
-   @-moz-document url-prefix() {
-    .label {
-     color: inherit;
-     background-color: transparent;
-    }
-    #transfer .label {
-     color: rgb(232, 221, 203);
-     background-color: transparent;
-    }
-    .option .head {
-     color: inherit;
-     background-color: transparent;
-    }
-   }
   script(type='text/javascript')
    var _gaq = _gaq || [];
    _gaq.push(['_setAccount', '#{ga.account}']);
    _gaq.push(['_trackPageview']);
    facebook = !{facebook};
    user = !{user};
-  script(type='text/javascript', src='/javascripts/jquery.js');
-  script(type='text/javascript', src='/javascripts/md5.js');
-  script(type='text/javascript', src='/javascripts/script.js')
   script(type='text/javascript', src='/socket.io/socket.io.js')
+  script(type='text/javascript', src='/javascripts/jquery.js')
+  script(type='text/javascript', src='/javascripts/md5.js')
+
+  link(rel='stylesheet', href='/stylesheets/style.css')
+  link(rel='icon', type='image/png', href='/images/y.png')
+
+  script(type='text/javascript', src='/javascripts/script.js')
  body!= body

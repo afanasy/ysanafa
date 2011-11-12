@@ -154,7 +154,7 @@ app.configure('production', function() {
 
 app.get('/', function(req, res) {
  ysa.log('/ ' + req.connection.remoteAddress + ' ' + req.headers['user-agent']);
- if((req.headers['user-agent'].indexOf('Opera') < 0) && (req.headers['user-agent'].indexOf('MSIE') < 0)) {
+ if(!conf.notSupported.test(req.headers['user-agent'])) {
   ysa.session(req, function(req) {
    res.render('index', {
     title: 'Ysanafa',
