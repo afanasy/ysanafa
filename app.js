@@ -12,7 +12,6 @@ var
  stylus = require('stylus'),
  nib = require('nib'),
  fs = require('fs'),
- knox = require('knox'),
  https = require('https'),
  io = require('socket.io').listen(app),
  mongodb = require('mongodb'),
@@ -22,6 +21,9 @@ var
  exec = require('child_process').exec,
  qs = require('qs'),
  crypto = require('crypto');
+
+if(conf.amazon.enabled)
+ knox = require('knox').createClient(conf.amazon);
 
 parseCookie = function(str){
   var obj = {}
@@ -100,8 +102,6 @@ ysa.session = function(req, callback) {
   }
  });
 }
-
-//knox = knox.createClient(conf.amazon);
 
 db.oid = function(id) {
  return db.bson_serializer.ObjectID(String(id));
@@ -271,6 +271,11 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
     res.end();
     return;
    }
+   if(file.s3 && conf.amazon.enabled) {
+    res.writeHead(302, {'Location': 'http://s3.amazonaws.com/' + conf.amazon.bucket + '/f/' + user._id + file._id + '/' + encodeURIComponent(file.name)});
+    res.end();
+    return;
+   }
    if(req.headers['if-none-match'] && (req.headers['if-none-match'] == file._id) && (req.headers['cache-control'] != 'max-age=0')) {
     ysa.log('download 304 ' + req.params.id);
     res.writeHead(304);
@@ -386,7 +391,19 @@ app.post('/upload', function(req, res) {
    io.sockets.in(req.sessionID).emit('transfer', req.session.user.transfer);
    ysa.log('transfer.done +' + done);
    
-//  knox.putFile('/data/test/a', '/data/a', function(err, res) {}); 
+   if(conf.amazon.enabled) {
+    ysa.log('s3 upload ' + _id);
+    knox.putFile('/ebs/ydata/' + conf.NODE_ENV + '/' + f.data.path, '/f/' + req.session.user._id + _id + '/' + encodeURIComponent(f.name), {'Content-Type': f.type}, function(err, res) {
+     if(res.statusCode == 200) {
+      var user = {};
+      user['file.' + _id + '.s3'] = true;
+      ysa.user.update({'_id': db.oid(req.session.user._id)}, {$set: user});
+      console.log('s3 ok ' + _id);
+     }
+     else
+      console.log('s3 failed ' + _id);
+    }); 
+   }
   }
   res.writeHead(200, {'content-type': 'text/plain'});
   res.end();
