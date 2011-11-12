@@ -456,7 +456,7 @@ app.post('/upload', function(req, res) {
      response.on('data', function(data) {
       response.data += data;
      });
-     response.on('close', function() {
+     response.on('end', function() {
       var data = JSON.parse(response.data);
       if(data.id)
        req.upload[_id]['ggl'] = data.id.substr(14, data.id.length);
