@@ -8,7 +8,6 @@ var
  express = require('express'),
  app = express.createServer(),
  sessionStore = new express.session.MemoryStore(),
-// parseCookie = require('connect').utils.parseCookie,
  stylus = require('stylus'),
  nib = require('nib'),
  fs = require('fs'),
@@ -22,8 +21,14 @@ var
  qs = require('qs'),
  crypto = require('crypto');
 
-if(conf.amazon.enabled)
+if(conf.amazon.enabled) {
  knox = require('knox').createClient(conf.amazon);
+ knox.request('GET', '/?logging').on('response', function(res){
+  res.on('data', function(data) {
+   console.log(data.toString());
+  });
+ }).end();
+}
 
 parseCookie = function(str){
   var obj = {}
@@ -271,7 +276,7 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
     res.end();
     return;
    }
-   if(file.s3 && conf.amazon.enabled) {
+   if(file.s3 && knox) {
     res.writeHead(302, {'Location': 'http://s3.amazonaws.com/' + conf.amazon.bucket + '/f/' + user._id + file._id + '/' + encodeURIComponent(file.name)});
     res.end();
     return;
@@ -391,17 +396,19 @@ app.post('/upload', function(req, res) {
    io.sockets.in(req.sessionID).emit('transfer', req.session.user.transfer);
    ysa.log('transfer.done +' + done);
    
-   if(conf.amazon.enabled) {
+   if(knox) {
     ysa.log('s3 upload ' + _id);
     knox.putFile('/ebs/ydata/' + conf.NODE_ENV + '/' + f.data.path, '/f/' + req.session.user._id + _id + '/' + encodeURIComponent(f.name), {'Content-Type': f.type}, function(err, res) {
      if(res.statusCode == 200) {
+      req.session.user.file[_id].s3 = true;
+      req.session.save();
       var user = {};
       user['file.' + _id + '.s3'] = true;
       ysa.user.update({'_id': db.oid(req.session.user._id)}, {$set: user});
-      console.log('s3 ok ' + _id);
+      ysa.log('s3 ok ' + _id);
      }
      else
-      console.log('s3 failed ' + _id);
+      ysa.log('s3 failed ' + _id);
     }); 
    }
   }
@@ -615,10 +622,17 @@ io.sockets.on('connection', function (socket) {
     return;
    ysa.log('delete: ' + file._id);
    if(session.user.file && session.user.file[file._id]) {
+    ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {file: file._id}});
+    if(knox && session.user.file[file._id].s3) {
+     var path = '/f/' + session.user._id + file._id + '/' + encodeURIComponent(session.user.file[file._id].name);
+     ysa.log('s3 delete ' + path);
+     knox.deleteFile(path, function(err, res) {
+      ysa.log('s3 delete ' + res.statusCode);
+     });
+    }
     delete session.user.file[file._id];
     sessionStore.set(sessionID, session);
    }
-   ysa.user.update({_id: db.oid(session.user._id)}, {$unset: {file: file._id}});
   });
  });
  socket.on('file', function(file) {
