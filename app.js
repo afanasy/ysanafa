@@ -20,8 +20,8 @@ var
  formidable = require('formidable'),
  util = require('util'),
  exec = require('child_process').exec,
- hashlib = require('hashlib'),
- qs = require('qs');
+ qs = require('qs'),
+ crypto = require('crypto');
 
 parseCookie = function(str){
   var obj = {}
@@ -423,8 +423,16 @@ app.post('/upload', function(req, res) {
     }
    }
    
-   hashlib.md5_file(f.path, function(md5sum) {
-    path = '/ebs/ydata/' + conf.NODE_ENV + '/' + md5sum;
+   var md5sum = crypto.createHash('md5');
+
+   var s = fs.ReadStream(f.path);
+   s.on('data', function(d) {
+    md5sum.update(d);
+   });
+
+   s.on('end', function() {
+    var d = md5sum.digest('hex');
+    path = '/ebs/ydata/' + conf.NODE_ENV + '/' + d;
     fs.stat(path, function(err, stats) {
      if(err) {
       fs.rename(f.path, path, function(err) {
@@ -432,7 +440,7 @@ app.post('/upload', function(req, res) {
      }
     });
 
-    req.upload[_id].data.path = md5sum;
+    req.upload[_id].data.path = d;
 
     user.file = user.file || {};
     user.file[_id] = req.upload[_id];
