@@ -74,13 +74,7 @@ ysa.pullLog = function() {
        var pattern = new RegExp('"GET \/' + conf.amazon.bucket + '\/file\/([^\/]+)\/([^\/]+)\/[^ ]+ HTTP\/\\d\.\\d" 20\\d [^ ]+ (\\d+)', 'g');
        while(path = pattern.exec(res.data)) {
         (function(path) {
-         var find = {};
-         find['_id'] = db.oid(path[1]);
-         find['file.' + path[2]] = {$exists: true};
-         ysa.user.findOne(find, function(err, user) {
-          if(user)
-           ysa.updateTransfer(user._id, parseInt(path[2]));
-         });
+         ysa.updateTransfer(path[1], parseInt(path[3]));
         })(path);
        }
        ysa.log('s3 delete ' + file);
