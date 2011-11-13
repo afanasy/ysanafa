@@ -55,7 +55,7 @@ renderFile = function(file) {
  if(!file.name)
   return;
  var _id = hex_md5(file.name);
- var href = file['ggl'] ? 'http://goo.gl/' + file['ggl']: 'http://' + window.location.host + '/f/' + user._id + _id + '/' + encodeURIComponent(file.name);
+ var href = file['ggl'] ? 'http://goo.gl/' + file['ggl']: 'http://' + window.location.host + '/file/' + user._id + '/' + _id + '/' + encodeURIComponent(file.name);
  var element = $('.template .file').clone()
   .css('left', file.x)
   .css('top', file.y)

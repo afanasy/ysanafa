@@ -21,13 +21,79 @@ var
  qs = require('qs'),
  crypto = require('crypto');
 
-if(conf.amazon.enabled) {
+var knox = false;
+if(conf.amazon.enabled)
  knox = require('knox').createClient(conf.amazon);
- knox.request('GET', '/?logging').on('response', function(res){
-  res.on('data', function(data) {
-   console.log(data.toString());
+
+ysa.updateTransfer = function(_id, done) {
+ done = (done / (1 << 30));
+ ysa.user.update({'_id': db.oid(_id)}, {$inc: {'transfer.done': done}}, {safe: true}, function(err) {
+ ysa.log('transfer.done +' + done);
+  ysa.user.findOne({_id: db.oid(_id)}, function(err, user) {
+   if(user && user.sid) {
+    user.sid.forEach(function(sessionID) {
+     sessionStore.get(sessionID, function (err, session) {
+      if(session) {
+       if(!user.transfer.available)
+        user.transfer.available = conf.transfer.available;
+       session.user.transfer = user.transfer;
+       sessionStore.set(sessionID, session);
+       io.sockets.in(sessionID).emit('transfer', user.transfer);
+      } 
+     });
+    });
+   }
+  });
+ });
+}
+
+
+ysa.pullLog = function() {
+ ysa.log('s3 pull log');
+ knox.get('?prefix=log').on('response', function(res) {
+  res.setEncoding('utf8');
+  res.data = '';
+  res.on('data', function(data){
+   res.data += data;
+  });
+  res.on('end', function() {
+   var pattern = /<Key>(.+?)<\/Key>/g;
+   while(key = pattern.exec(res.data)) {
+    (function(key) {   
+     var file = key[1];
+     ysa.log('s3 get ' + file);
+     knox.get(file).on('response', function(res) {
+      res.setEncoding('utf8');
+      res.data = '';
+      res.on('data', function(data){
+       res.data += data;
+      });
+      res.on('end', function() {
+       if(res.statusCode != 200)
+        return;
+       var pattern = new RegExp('"GET \/' + conf.amazon.bucket + '\/file\/([^\/]+)\/([^\/]+)\/[^ ]+ HTTP\/\\d\.\\d" 20\\d [^ ]+ (\\d+)', 'g');
+       while(path = pattern.exec(res.data)) {
+        (function(path) {
+         var find = {};
+         find['_id'] = db.oid(path[1]);
+         find['file.' + path[2]] = {$exists: true};
+         ysa.user.findOne(find, function(err, user) {
+          if(user)
+           ysa.updateTransfer(user._id, parseInt(path[2]));
+         });
+        })(path);
+       }
+       ysa.log('s3 delete ' + file);
+       knox.deleteFile(file, function(err, res) {
+        ysa.log('s3 delete ' + res.statusCode);
+       });
+      });  
+     }).end();
+    })(key);
+   }
   });
  }).end();
+ setTimeout(ysa.pullLog, 60 * 1000);
 }
 
 parseCookie = function(str){
@@ -114,6 +180,8 @@ db.oid = function(id) {
 
 db.open(function(error, client) {
  ysa.user = new mongodb.Collection(client, 'user');
+ if(knox)
+  ysa.pullLog();
 });
 
 app.configure(function() {
@@ -255,34 +323,34 @@ app.post('/paypal', function(req, res) {
   });
  });
 });
-app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
- ysa.log('download started ' + req.params.id);
+app.get('/file/:user([a-f0-9]{24})/:file([a-f0-9]{32})/:name', function(req, res) {
+ ysa.log('download started ' + req.params.name);
  ysa.session(req, function(req) {
-  var find = {'_id': db.oid(req.params.id.substr(0, 24))};
-  find['file.' + req.params.id.substr(24, 32)] = {$exists: true};
+  var find = {'_id': db.oid(req.params.user)};
+  find['file.' + req.params.file] = {$exists: true};
   ysa.user.findOne(find, function(err, user) {
    if(!user) {
-    ysa.log('download 404 ' + req.params.id);
+    ysa.log('download 404 ' + req.params.name);
     res.writeHead(404);
     res.end();
     return;
    }
-   var file = user.file[req.params.id.substr(24, 32)];
-   file._id = req.params.id.substr(24, 32);
+   var file = user.file[req.params.file];
+   file._id = req.params.file;
    file.data = file.data || {};
    if((user.transfer.done + (file.data.size / (1 << 30))) > user.transfer.available) {
-    ysa.log('download 402 ' + req.params.id);
+    ysa.log('download 402 ' + req.params.name);
     res.writeHead(402);
     res.end();
     return;
    }
    if(file.s3 && knox) {
-    res.writeHead(302, {'Location': 'http://s3.amazonaws.com/' + conf.amazon.bucket + '/f/' + user._id + file._id + '/' + encodeURIComponent(file.name)});
+    res.writeHead(302, {'Location': 'http://s3.amazonaws.com/' + conf.amazon.bucket + '/file/' + user._id + '/' + file._id + '/' + encodeURIComponent(file.name)});
     res.end();
     return;
    }
    if(req.headers['if-none-match'] && (req.headers['if-none-match'] == file._id) && (req.headers['cache-control'] != 'max-age=0')) {
-    ysa.log('download 304 ' + req.params.id);
+    ysa.log('download 304 ' + req.params.name);
     res.writeHead(304);
     res.end();
     return;    
@@ -310,7 +378,7 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
    readStream = fs.createReadStream('/ebs/ydata/' + conf.NODE_ENV + '/' + file.data.path, options);
    readStream.pipe(res);
    readStream.on('error', function () {
-    ysa.log('download 404 ' + req.params.id + ' read stream error');
+    ysa.log('download 404 ' + req.params.name + ' read stream error');
     res.writeHead(404);
     res.end();
    });
@@ -323,36 +391,16 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
      headers['Date'] = new Date().toUTCString();
      headers['Content-Length'] = (options.end - options.start + 1);
      headers['Content-Range'] = 'bytes ' + options.start + '-' + options.end + '/' + file.data.size;
-     ysa.log('download 206 ' + req.params.id + ' ' + headers['Content-Range']);
+     ysa.log('download 206 ' + req.params.name + ' ' + headers['Content-Range']);
      res.writeHead(206, headers);
     }
     else {
      headers['Content-Length'] = file.data.size;
      headers['Etag'] = file._id;
-     ysa.log('download 200 ' + req.params.id);
+     ysa.log('download 200 ' + req.params.name);
      res.writeHead(200, headers);
     }
    });
-   var updateTransfer = function(done) {
-    ysa.user.update({'_id': db.oid(user._id)}, {$inc: {'transfer.done': done}}, {safe: true}, function(err) {
-     ysa.log('transfer.done +' + done);
-     ysa.user.findOne({_id: db.oid(user._id)}, function(err, user) {
-      if(user && user.sid) {
-       user.sid.forEach(function(sessionID) {
-        sessionStore.get(sessionID, function (err, session) {
-         if(session) {
-          if(!user.transfer.available)
-           user.transfer.available = conf.transfer.available;
-          session.user.transfer = user.transfer;
-          sessionStore.set(sessionID, session);
-          io.sockets.in(sessionID).emit('transfer', user.transfer);
-         }
-        });
-       });
-      }
-     });
-    });
-   }
    readStream.on('data', function(data) {
     readStream.dataLength = readStream.dataLength || 0;
     readStream.dataLength += data.length;
@@ -360,13 +408,13 @@ app.get('/f/:id([a-f0-9]{56})/:name', function(req, res) {
      readStream.updateTransfer = new Date().getTime();
     now = Date.now();
     if(now > readStream.updateTransfer) {
-     updateTransfer(readStream.dataLength / (1 << 30));
+     ysa.updateTransfer(user._id, readStream.dataLength);
      readStream.dataLength = 0;
      readStream.updateTransfer = now + 500;
     }
    });
    readStream.on('end', function() {
-    updateTransfer(readStream.dataLength / (1 << 30));
+    ysa.updateTransfer(user._id, readStream.dataLength);
     readStream.dataLength = 0;
    });
   });
@@ -382,35 +430,38 @@ app.post('/upload', function(req, res) {
     return;
 
   for(_id in req.upload) {
-   var f = req.upload[_id];
-   var user = {};
-   user['file.' + _id] = f;
-   ysa.user.findAndModify({'_id': db.oid(req.session.user._id)}, [['_id','asc']], {$set: user}, {upsert: true, new: true}, function(err, user) {});
-   io.sockets.in(req.sessionID).emit('file', f);
+   (function(_id) {
+    var f = req.upload[_id];
+    var user = {};
+    user['file.' + _id] = f;
+    ysa.user.findAndModify({'_id': db.oid(req.session.user._id)}, [['_id','asc']], {$set: user}, {upsert: true, new: true}, function(err, user) {});
+    io.sockets.in(req.sessionID).emit('file', f);
 
-   var done = (f.data.size / (1 << 30));
-   req.session.user.transfer.done = req.session.user.transfer.done || 0;
-   req.session.user.transfer.done += done;
-   req.session.save();
-   ysa.user.update({'_id': db.oid(req.session.user._id)}, {$inc: {'transfer.done': done}});
-   io.sockets.in(req.sessionID).emit('transfer', req.session.user.transfer);
-   ysa.log('transfer.done +' + done);
+    var done = (f.data.size / (1 << 30));
+    req.session.user.transfer.done = req.session.user.transfer.done || 0;
+    req.session.user.transfer.done += done;
+    req.session.save();
+    ysa.user.update({'_id': db.oid(req.session.user._id)}, {$inc: {'transfer.done': done}});
+    io.sockets.in(req.sessionID).emit('transfer', req.session.user.transfer);
+    ysa.log('transfer.done +' + done);
    
-   if(knox) {
-    ysa.log('s3 upload ' + _id);
-    knox.putFile('/ebs/ydata/' + conf.NODE_ENV + '/' + f.data.path, '/f/' + req.session.user._id + _id + '/' + encodeURIComponent(f.name), {'Content-Type': f.type}, function(err, res) {
-     if(res.statusCode == 200) {
-      req.session.user.file[_id].s3 = true;
-      req.session.save();
-      var user = {};
-      user['file.' + _id + '.s3'] = true;
-      ysa.user.update({'_id': db.oid(req.session.user._id)}, {$set: user});
-      ysa.log('s3 ok ' + _id);
-     }
-     else
-      ysa.log('s3 failed ' + _id);
-    }); 
-   }
+    if(knox) {
+     ysa.log('s3 upload ' + _id);
+     knox.putFile('/ebs/ydata/' + conf.NODE_ENV + '/' + f.data.path, '/file/' + req.session.user._id + '/' + _id + '/' + encodeURIComponent(f.name), {'Content-Type': f.type}, function(err, res) {
+      if(res.statusCode == 200) {
+       req.session.user.file[_id].s3 = true;
+       req.session.save();
+       var user = {};
+       user['file.' + _id + '.s3'] = true;
+       ysa.user.update({'_id': db.oid(req.session.user._id)}, {$set: user});
+       ysa.log('s3 ok ' + _id);
+       fs.unlink('/ebs/ydata/' + conf.NODE_ENV + '/' + f.data.path);
+      }
+      else
+       ysa.log('s3 failed ' + _id);
+     }); 
+    }
+   })(_id);
   }
   res.writeHead(200, {'content-type': 'text/plain'});
   res.end();
@@ -472,7 +523,7 @@ app.post('/upload', function(req, res) {
     req.session.user = user;
     req.session.save();
     
-    var body = JSON.stringify({'longUrl': 'http://' + conf.host + (conf.port == 80? '': ':' + conf.port) + '/f/' + user._id + _id + '/' + encodeURIComponent(req.upload[_id].name)});
+    var body = JSON.stringify({'longUrl': 'http://' + conf.host + (conf.port == 80? '': ':' + conf.port) + '/file/' + user._id + '/' + _id + '/' + encodeURIComponent(req.upload[_id].name)});
     var post = https.request({
      'method': 'POST',
      'host': 'www.googleapis.com',
