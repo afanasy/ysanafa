@@ -63,25 +63,24 @@ renderFile = function(file) {
   .find('.name').text(file.name).end()
   .bind('dragstart', function(event) {
    $('#trash').fadeIn(300);
-   event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + href);
-//   event.dataTransfer.setData('URL', href);
-//   event.dataTransfer.setData("text/uri-list", href);
    event.dataTransfer.setData('text/plain', href);
-   $('#dropbox').get(0).dragId = _id;
-//   this._id = _id;
-   this.x = (event.pageX - parseFloat($(this).css('left')));
-   this.y = (event.pageY - parseFloat($(this).css('top')));
+   if(window.navigator.userAgent.indexOf('Windows') < 0)
+    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + href);
+   $('#dropbox').attr('dragId', _id);
+   $(this).attr('x', (event.pageX - parseFloat($(this).css('left'))));
+   $(this).attr('y', (event.pageY - parseFloat($(this).css('top'))));
   })
   .bind('dragend', function(event) {
-   if(!$('#dropbox').get(0).dragId) {
-    x = ($('#dropbox').get(0).dragoverX - this.x);
-    y = ($('#dropbox').get(0).dragoverY - this.y);
+   if(!$('#dropbox').attr('dragId')) {
+    x = ($('#dropbox').attr('dragoverX') - $(this).attr('x'));
+    y = ($('#dropbox').attr('dragoverY') - $(this).attr('y'));
     user.file[_id].x = x;
     user.file[_id].y = y;
     socket.emit('file', {_id: _id, x: x, y: y});
     $(this).css('left', x);
     $(this).css('top', y);
    }
+   $('#dropbox').removeAttr('dragId');
    $('#trash').fadeOut(300);
    return false;
   })
@@ -189,12 +188,12 @@ $(function() {
  toggleHeadline();
  
  $('#dropbox').bind('dragover', function(event) {
-  this.dragoverX = event.pageX;
-  this.dragoverY = event.pageY;
+  $(this).attr('dragoverX', event.pageX);
+  $(this).attr('dragoverY', event.pageY);
   return false;
  });
  $('#dropbox').bind('drop', function(event) {
-  delete $(this).get(0).dragId;
+  $(this).removeAttr('dragId');
   for(var i = 0, f; f = event.dataTransfer.files[i]; i++) {
    if((parseFloat(user.transfer.done) + (f.size / (1 << 30))) > parseFloat(user.transfer.available)) {
     $('#transfer .done').addClass('blink');
@@ -259,10 +258,9 @@ $(function() {
  $('#trash').bind('dragover', false);
 
  $('#trash').bind('drop', function(event) {
-  var _id = $('#dropbox').get(0).dragId;
-  delete $(this).get(0).dragId;
+  var _id = $('#dropbox').attr('dragId');
   if(!user.file[_id])
-   return;
+   return false;
   if(user.file[_id].upload)
    user.file[_id].upload.abort();
   socket.emit('delete', {_id: _id});
