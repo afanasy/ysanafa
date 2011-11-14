@@ -49,7 +49,6 @@ ysa.updateTransfer = function(_id, done) {
 
 
 ysa.pullLog = function() {
- ysa.log('s3 pull log');
  knox.get('?prefix=log').on('response', function(res) {
   res.setEncoding('utf8');
   res.data = '';
@@ -57,6 +56,10 @@ ysa.pullLog = function() {
    res.data += data;
   });
   res.on('end', function() {
+   if(res.statusCode != 200) {
+    ysa.log('s3 pull log failed ' + res.statusCode);
+    return;
+   }
    var pattern = /<Key>(.+?)<\/Key>/g;
    while(key = pattern.exec(res.data)) {
     (function(key) {   
@@ -69,8 +72,10 @@ ysa.pullLog = function() {
        res.data += data;
       });
       res.on('end', function() {
-       if(res.statusCode != 200)
+       if(res.statusCode != 200) {
+        ysa.log('s3 get ' + file + ' failed ' + res.statusCode);
         return;
+       }
        var pattern = new RegExp('"GET \/' + conf.amazon.bucket + '\/file\/([^\/]+)\/([^\/]+)\/[^ ]+ HTTP\/\\d\.\\d" 20\\d [^ ]+ (\\d+)', 'g');
        while(path = pattern.exec(res.data)) {
         (function(path) {
