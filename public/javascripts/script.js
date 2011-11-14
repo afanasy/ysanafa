@@ -14,7 +14,9 @@ $.event.props.push('dataTransfer', 'pageX', 'pageY');
  var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
 })();
 
+dragOn = false;
 if(window.navigator.userAgent.indexOf('AppleWebKit') > 0) {
+ dragOn = true;
  (function() {
   var webkit = document.createElement('link'); webkit.rel = 'stylesheet'; webkit.async = true;
   webkit.href = '/stylesheets/webkit.css';
@@ -36,7 +38,7 @@ renderTransfer = function(transfer) {
   transfer.done = transfer.available;
 // transfer.done = .5;
 // transfer.available = 1.;
- $('#transfer .done').css('width', (transfer.done / transfer.available) * parseFloat($('#transfer .progress').css('width')));
+ $('#transfer .done').css('width', (transfer.done / transfer.available) * parseInt($('#transfer .progress').css('width'), 10));
  var available = transfer.available;
  var suffix = 'GB';
  var size = 3;
@@ -61,31 +63,104 @@ renderFile = function(file) {
   .css('top', file.y)
   .find('a').attr('href', href).end()
   .find('.name').text(file.name).end()
-  .bind('dragstart', function(event) {
-   $('#trash').fadeIn(300);
-   event.dataTransfer.setData('text/plain', href);
-   if(window.navigator.userAgent.indexOf('Windows') < 0)
-    event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + href);
-   $('#dropbox').attr('dragId', _id);
-   $(this).attr('x', (event.pageX - parseFloat($(this).css('left'))));
-   $(this).attr('y', (event.pageY - parseFloat($(this).css('top'))));
-  })
-  .bind('dragend', function(event) {
-   if(!$('#dropbox').attr('dragId')) {
-    x = ($('#dropbox').attr('dragoverX') - $(this).attr('x'));
-    y = ($('#dropbox').attr('dragoverY') - $(this).attr('y'));
-    user.file[_id].x = x;
-    user.file[_id].y = y;
-    socket.emit('file', {_id: _id, x: x, y: y});
-    $(this).css('left', x);
-    $(this).css('top', y);
-   }
-   $('#dropbox').removeAttr('dragId');
-   $('#trash').fadeOut(300);
-   return false;
-  })
   .appendTo('#dropbox').fadeIn(300).get(0);
+ if(dragOn) {
+  $(element).attr('draggable', 'true')
+  .on('dragstart', function(event) {
+    $('#trash').fadeIn(300);
+    event.dataTransfer.setData('text/plain', href);
+    if(window.navigator.userAgent.indexOf('Windows') < 0)
+     event.dataTransfer.setData('DownloadURL', file.type + ':' + file.name + ':' + href);
+    $('#dropbox').attr('dragId', _id);
+    $(this).attr('x', (event.pageX - parseInt($(this).css('left'), 10)));
+    $(this).attr('y', (event.pageY - parseInt($(this).css('top'), 10)));
+   })
+   .on('dragend', function(event) {
+    if(!$('#dropbox').attr('dragId')) {
+     var x = ($('#dropbox').attr('dragoverX') - $(this).attr('x'));
+     var y = ($('#dropbox').attr('dragoverY') - $(this).attr('y'));
+     user.file[_id].x = x;
+     user.file[_id].y = y;
+     socket.emit('file', {_id: _id, x: x, y: y});
+     $(this).css('left', x);
+     $(this).css('top', y);
+    }
+    $('#dropbox').removeAttr('dragId');
+    $('#trash').fadeOut(300);
+    return false;
+   })
+ }
+ else {
+  $(element).attr('draggable', 'false')
+   .on('mousedown', function(event) {
+    $('#dropbox').attr('dragId', _id);
+    $(this).attr('x', (event.pageX - parseInt($(this).css('left'), 10)));
+    $(this).attr('y', (event.pageY - parseInt($(this).css('top'), 10)));
+    $('#dropbox, #trash').on('mousemove', function(event) {
+     $('#trash').fadeIn(300);
+     var _id = $('#dropbox').attr('dragId');
+     var element = user.file[_id].element;
+     var x = (event.pageX - $(element).attr('x'));
+     var y = (event.pageY - $(element).attr('y'));
+     user.file[_id].x = x;
+     user.file[_id].y = y;
+     socket.emit('file', {_id: _id, x: x, y: y});
+     $(element).css('left', x);
+     $(element).css('top', y);
+    })
+    $('#trash').on('mouseup', function(event) {
+     deleteFile();
+     $('#dropbox, #trash').off('mousemove');
+     $('#trash').off('mouseup');
+     $('#dropbox').removeAttr('dragId');
+     $('#trash').fadeOut(300);
+    });
+   })
+   .on('mouseup', function() {
+    $('#dropbox, #trash').off('mousemove');
+    $('#trash').off('mouseup');
+    $('#dropbox').removeAttr('dragId');
+    $('#trash').fadeOut(300);
+   })
+ }
+  
  user.file[_id].element = element;
+}
+
+prepareFile = function(file) {
+ user.file = user.file || {};
+  
+ var name = file.name;
+ var _id = hex_md5(name);
+ var extension = ((/.+(\.[^\. ]+)$/).exec(name) || [])[1];
+   
+ while(true) {
+  if(user.file[_id]) {
+   if(extension)
+    name = name.substr(0, name.length - extension.length) + ' copy' + extension;
+   else
+    name += ' copy';
+   _id = hex_md5(name);
+  }
+  else
+   break;
+ }
+
+ var f = {
+  name: name
+ }
+ if(file.x)
+  f.x = file.x;
+ if(file.y)
+  f.y = file.x;
+ if(file.size) {
+  f.data = {
+   size: file.size
+  }
+ }
+ 
+ user.file[_id] = f;
+ return _id;
 }
 
 toggleHeadline = function() {
@@ -127,7 +202,7 @@ $(function() {
 
  socket.on('progress', function(progress) {
   if(progress._id && user.file[progress._id]) {
-   var width = progress.done * parseFloat($(user.file[progress._id].element).find('.progress').css('width'));
+   var width = progress.done * parseInt($(user.file[progress._id].element).find('.progress').css('width'), 10);
    if(width > 5)
     $(user.file[progress._id].element).find('.progress .done').css('width', width);
    if(progress.done == 1)
@@ -203,40 +278,12 @@ $(function() {
     break;
    }
    
-   user.file = user.file || {};
-  
-   var name = f.name;
-   var _id = hex_md5(name);
-
-   var extension = ((/.+(\.[^\. ]+)$/).exec(name) || [])[1];
-   
-   while(true) {
-    if(user.file[_id]) {
-     if(extension)
-      name = name.substr(0, name.length - extension.length) + ' copy' + extension;
-     else
-      name += ' copy';
-    _id = hex_md5(name);
-    }
-    else
-     break;
-   }
-
-   user.file[_id] = {
-    'name': name,
-    'x': (event.pageX - 64),
-    'y': (event.pageY - 64),
-    'data': {
-     'size': f.size
-    }
-   }
+   f.x = (event.pageX - 64);
+   f.y = (event.pageY - 64);
+   var _id = prepareFile(f);
 
    var formData = new FormData();
-   formData.append(_id, JSON.stringify(user.file[_id]));
-   
-   renderFile(user.file[_id]);
-   $(user.file[_id].element).find('.progress').fadeIn(0);
-
+   formData.append(_id, JSON.stringify(user.file[_id]));   
    formData.append(_id, f);
 
    user.file[_id].upload = $.ajax({
@@ -248,16 +295,14 @@ $(function() {
    });
 
    $('#headline').fadeOut(300);
-
-   _gaq.push(['_trackEvent', 'Upload', 'start', f.name]);
-
+   _gaq.push(['_trackEvent', 'Upload', 'start', user.file[_id].name]);
+   renderFile(user.file[_id]);
+   $(user.file[_id].element).find('.progress').fadeIn(0);
   }
   return false;
  });
 
- $('#trash').bind('dragover', false);
-
- $('#trash').bind('drop', function(event) {
+ deleteFile = function() {
   var _id = $('#dropbox').attr('dragId');
   if(!user.file[_id])
    return false;
@@ -269,6 +314,12 @@ $(function() {
    delete user.file[_id];
    toggleHeadline();
   });
+ }
+
+ $('#trash').bind('dragover', false);
+
+ $('#trash').bind('drop', function(event) {
+  deleteFile();
   return false;
  });
 
@@ -306,6 +357,29 @@ $(function() {
 
  $('#paypal .buy').click(function() {
   $('#paypal form').submit();
+ });
+
+ $('#upload input').on('change', function(event) {
+  var name = $(this).val().replace(/C:\\fakepath\\/i, '');
+  var file = {
+   name: name,
+   x: 100,
+   y: 100
+  }
+  var _id = prepareFile(file);
+  $(this).attr('name', _id);
+  $.ajax({
+   'type': 'POST',
+   'url': '/upload', 
+   'fileInput': $(this),
+   'formData': [{name: _id, value: JSON.stringify(user.file[_id])}],
+   'dataType': 'iframe'
+  });
+
+  $('#headline').fadeOut(300);
+  _gaq.push(['_trackEvent', 'Upload', 'start', user.file[_id].name]);
+  renderFile(user.file[_id]);
+  $(user.file[_id].element).find('.progress').fadeIn(0);
  });
 
  $('.logout').click(function() {

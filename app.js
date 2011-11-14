@@ -248,8 +248,11 @@ app.get('/facebookChannel', function(req, res) {
 app.get('/facebookApp', function(req, res) {
  res.end();
 });
+app.get('/blank', function(req, res) {
+ res.end();
+});
 app.get('/status', function(req, res) {
- res.send('connections: ' + io.sockets.n + '<br>memory: ' + util.inspect(process.memoryUsage()));
+ res.end('connections: ' + io.sockets.n + '<br>memory: ' + util.inspect(process.memoryUsage()));
 });
 app.get('/paypal', function(req, res) {
  var log = fs.createWriteStream('paypal.log', {flags: 'a'});
@@ -462,7 +465,6 @@ app.post('/upload', function(req, res) {
     }
    })(_id);
   }
-  res.writeHead(200, {'content-type': 'text/plain'});
   res.end();
  }
 
@@ -473,6 +475,7 @@ app.post('/upload', function(req, res) {
  form.parse(req, function(err, field, file) {
   if(err) {
    ysa.log('upload failed: ' + err.message);
+   res.end();
    return;
   }
   var user = req.session.user;
