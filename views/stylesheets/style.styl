@@ -1,11 +1,4 @@
-terraTerra = rgb(232, 221, 203)
-terra = rgb(205, 179, 128)
-acqua = rgb(3, 101, 100) 
-acquaProfonda = rgb(3, 54, 73)
-abisso = rgb(3, 22, 52)
-
-terraTerraTransparent = rgba(232, 221, 203, 0.8)
-acquaTransparent = rgb(3, 101, 100, 0.1) 
+@import palette
 
 body
  font 24px "Lucida Grande", Helvetica, Arial, sans-serif
@@ -55,8 +48,6 @@ img
  margin 86px 24px 20px 24px
  border-radius 10px
  padding 5px
- //background-image -webkit-linear-gradient(top, acquaProfonda 0%, acqua 120%)
- //-webkit-box-shadow inset 0px 0px 1px 0px #000
 
 .file .done
  width 5px
@@ -64,7 +55,6 @@ img
  border-radius 10px
  margin 0px
  padding 0px
- //background-image linear-gradient(top, terraTerra 0%, terra 100%)
  background-color terra
  box-shadow inset 0px 1px 1px 0px #000
 
@@ -88,6 +78,7 @@ img
  padding 0px 10px 0px 10px
 
 #upload
+ display none
  cursor pointer
  position fixed
  top 10px
@@ -186,16 +177,6 @@ img
  //border 1px solid red
  border-radius 20px
 
-.buy
- cursor pointer
- width 200px
- height 40px
- border-radius 10px
- margin 160px auto 0px auto
- padding-top 10px
- background-image linear-gradient(top, terra 0%, terraTerra 100%)
- box-shadow 0px 0px 5px 0px #000
-
 .select
  text-align center
  border 1px solid transparent
@@ -236,11 +217,11 @@ img
  font-size 32px
  height 60px
  position fixed
- right -10px
+ right 0px
  bottom 0px
- left -10px
- background-image linear-gradient(top, acquaProfonda 0%, abisso 100%)
- box-shadow inset 0px 5px 10px 0px #000
+ left 0px
+ background-image linear-gradient(60px top, black 0%, acquaProfonda 5%, abisso 100%)
+ //box-shadow inset 0px 5px 10px 0px #000 
 
 #transfer
  margin-left auto
@@ -268,7 +249,7 @@ img
  border-radius 10px
  padding 5px
  background-image linear-gradient(top, abisso 0%, acquaProfonda 120%)
- box-shadow inset 0px 0px 10px 0px #000
+ box-shadow inset 0px 0px 5px 0px #000
 
 @keyframes pulse
  0%

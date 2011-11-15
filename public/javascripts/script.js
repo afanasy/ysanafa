@@ -1,5 +1,11 @@
 $.event.props.push('dataTransfer', 'pageX', 'pageY');
 
+function addCss(name) {
+ var link = document.createElement('link'); link.rel = 'stylesheet'; link.async = true;
+ link.href = '/stylesheets/' + name + '.css';
+ var l = document.getElementsByTagName('link')[1]; l.parentNode.insertBefore(link, l);
+}
+
 (function(d, s, id) {
  var js, fjs = d.getElementsByTagName(s)[0];
  if (d.getElementById(id)) {return;}
@@ -17,11 +23,13 @@ $.event.props.push('dataTransfer', 'pageX', 'pageY');
 dragOn = false;
 if(window.navigator.userAgent.indexOf('AppleWebKit') > 0) {
  dragOn = true;
- (function() {
-  var webkit = document.createElement('link'); webkit.rel = 'stylesheet'; webkit.async = true;
-  webkit.href = '/stylesheets/webkit.css';
-  var l = document.getElementsByTagName('link')[1]; l.parentNode.insertBefore(webkit, l);
- })();
+ addCss('webkit');
+}
+
+dropIn = true;
+if(window.navigator.userAgent.indexOf('MSIE') > 0) {
+ dropIn = false;
+ addCss('msie');
 }
 
 var socket;
@@ -250,8 +258,8 @@ $(function() {
 
  $('#paypal input[name="custom"]').val(user._id);
 
-// user.transfer.available = 0.001;
- renderTransfer(user.transfer);
+// user.transfer.done = 0.1;
+// renderTransfer(user.transfer);
 
 // $('.file .progress').show(0);
 // $('.file .done').css('width', 30);
@@ -260,7 +268,12 @@ $(function() {
  for(var _id in user.file)
   renderFile(user.file[_id]);
 
- toggleHeadline();
+ if(!dropIn) {
+  $('#upload').show(0);
+  $('#headline').hide(0);
+ }
+ else
+  toggleHeadline();  
  
  $('#dropbox').bind('dragover', function(event) {
   $(this).attr('dragoverX', event.pageX);
