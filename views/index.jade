@@ -26,28 +26,27 @@
 #trash
 
 #pay
- #paypal
-  form(action="https://www.paypal.com/cgi-bin/webscr", method="post", target='_blank')
-   input(type="hidden", name="cmd", value="_s-xclick")
-   input(type="hidden", name="hosted_button_id", value="#{paypal.button.id}")
-   input(type="hidden", name="on0", value="Amount")
-   .select
-    .option
-     .value 1GB
-     .head 1GB
-     div $0.99
-    .option.selected
-     .value 10GB
-     .head 10GB
-     div $8.99
-    .option
-     .value 100GB
-     .head 100GB
-     div $69.99
-   input(type='hidden', name='os0', value='1GB')
-   input(type='hidden', name='currency_code', value='USD')
-   input(type='hidden', name='custom')
-   img(alt="", border="0", src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif", width="1", height="1")
+ form(action="https://www.paypal.com/cgi-bin/webscr", method="post", target='_blank')
+  input(type="hidden", name="cmd", value="_s-xclick")
+  input(type="hidden", name="hosted_button_id", value="#{paypal.button.id}")
+  input(type="hidden", name="on0", value="Amount")
+  .select
+   .option
+    .value 1GB
+    .head 1GB
+    div $0.99
+   .option.selected
+    .value 10GB
+    .head 10GB
+    div $8.99
+   .option
+    .value 100GB
+    .head 100GB
+    div $69.99
+  input(type='hidden', name='os0', value='1GB')
+  input(type='hidden', name='currency_code', value='USD')
+  input(type='hidden', name='custom')
+  img(alt="", border="0", src="https://www.paypalobjects.com/en_US/i/scr/pixel.gif", width="1", height="1")
 
 #status
  #transfer

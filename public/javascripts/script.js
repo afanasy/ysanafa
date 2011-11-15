@@ -26,7 +26,7 @@ if(window.navigator.userAgent.indexOf('AppleWebKit') > 0) {
  addCss('webkit');
 }
 
-dropIn = true;
+dropIn = false;
 if(window.navigator.userAgent.indexOf('MSIE') > 0) {
  dropIn = false;
  addCss('msie');
@@ -256,7 +256,7 @@ $(function() {
  else
   $('.login').fadeIn(500);
 
- $('#paypal input[name="custom"]').val(user._id);
+ $('#pay input[name="custom"]').val(user._id);
 
 // user.transfer.done = 0.1;
 // renderTransfer(user.transfer);
@@ -363,13 +363,9 @@ $(function() {
   return false;
  });
 
- $('#paypal .option').click(function() {
-  $('#paypal form input[name="os0"]').val($(this).find('.value').text());
-  $('#paypal form').submit();
- });
-
- $('#paypal .buy').click(function() {
-  $('#paypal form').submit();
+ $('#pay .option').click(function() {
+  $('#pay form input[name="os0"]').val($(this).find('.value').text());
+  $('#pay form').submit();
  });
 
  $('#upload input').on('change', function(event) {
