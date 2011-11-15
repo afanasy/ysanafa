@@ -160,7 +160,7 @@ prepareFile = function(file) {
  if(file.x)
   f.x = file.x;
  if(file.y)
-  f.y = file.x;
+  f.y = file.y;
  if(file.size) {
   f.data = {
    size: file.size
@@ -290,13 +290,13 @@ $(function() {
     }, 2000);
     break;
    }
-   
+
    f.x = (event.pageX - 64);
    f.y = (event.pageY - 64);
    var _id = prepareFile(f);
 
    var formData = new FormData();
-   formData.append(_id, JSON.stringify(user.file[_id]));   
+   formData.append(_id, JSON.stringify(user.file[_id]));
    formData.append(_id, f);
 
    user.file[_id].upload = $.ajax({
