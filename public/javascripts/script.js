@@ -26,7 +26,7 @@ if(window.navigator.userAgent.indexOf('AppleWebKit') > 0) {
  addCss('webkit');
 }
 
-dropIn = false;
+dropIn = true;
 if(window.navigator.userAgent.indexOf('MSIE') > 0) {
  dropIn = false;
  addCss('msie');
